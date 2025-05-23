@@ -1,0 +1,12 @@
+resources:
+  - ../../base
+  - deployment.yaml
+  - secret.yaml
+
+patches:
+  - path: patch.yaml
+    target:
+      kind: Deployment
+      name: vllm
+
+
