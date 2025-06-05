@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:v0.8.5
+        args: []  # to be patched by overlays
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            nvidia.com/gpu: '1'
+        volumeMounts:
+        - mountPath: "/.cache"
+          name: hf-cache
+        - mountPath: "/.triton"
+          name: triton
+        - mountPath: "/.config"
+          name: config
+      volumes:
+      - emptyDir: {}
+        name: hf-cache
+      - emptyDir: {}
+        name: triton
+      - emptyDir: {}
+        name: config
+

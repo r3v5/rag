@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+spec:
+  template:
+    spec:
+      containers:
+      - name: vllm
+        args:
+        - "--model"
+        - ibm-granite/granite-3.3-2b-instruct
+        - "--port"
+        - '8000'
+        - "--dtype"
+        - half
+        - "--max-model-len"
+        - '8192'
+        env:
+        - name: VLLM_PORT
+          value: '8000'
+
+

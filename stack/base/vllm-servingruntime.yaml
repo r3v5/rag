@@ -1,0 +1,46 @@
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm
+spec:
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: '8080'
+  containers:
+  - args:
+    - "--port=8080"
+    - "--model=/mnt/models"
+    - "--served-model-name={{.Name}}"
+    command:
+    - python
+    - "-m"
+    - vllm.entrypoints.openai.api_server
+    env:
+    - name: VLLM_PORT
+      value: "8000"
+    - name: HF_HOME
+      value: "/tmp/hf_home"
+    - name: XDG_CACHE_HOME
+      value: /tmp/.cache
+    - name: HOME
+      value: /tmp
+    image: quay.io/modh/vllm@sha256:4f550996130e7d16cacb24ca9a2865e7cf51eddaab014ceaf31a1ea6ef86d4ec
+    name: kserve-container
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    volumeMounts:
+    - mountPath: "/dev/shm"
+      name: shm
+  multiModel: false
+  supportedModelFormats:
+  - autoSelect: true
+    name: vLLM
+  volumes:
+  - emptyDir:
+      medium: Memory
+      sizeLimit: 2Gi
+    name: shm
+
+
