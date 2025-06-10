@@ -19,28 +19,66 @@ _log = logging.getLogger(__name__)
 
 @dsl.component(
     base_image=PYTHON_BASE_IMAGE,
-    packages_to_install=["gitpython"],
+    packages_to_install=["llama-stack-client", "fire", "requests"],
+)
+def register_vector_db(
+    service_url: str,
+    vector_db_id: str,
+    embed_model_id: str,
+):
+    from llama_stack_client import LlamaStackClient
+
+    client = LlamaStackClient(base_url=service_url)
+
+    models = client.models.list()
+    matching_model = next((m for m in models if m.identifier == embed_model_id), None)
+
+    if not matching_model:
+        raise ValueError(f"Model with ID '{embed_model_id}' not found on LlamaStack server.")
+
+    if matching_model.model_type != "embedding":
+        raise ValueError(f"Model '{embed_model_id}' is not an embedding model")
+
+    embedding_dimension = matching_model.metadata["embedding_dimension"]
+
+    # Register the vector DB
+    _ = client.vector_dbs.register(
+        vector_db_id=vector_db_id,
+        embedding_model=embed_model_id,
+        embedding_dimension=embedding_dimension,
+        provider_id="milvus",
+    )
+    print(f"Registered vector DB '{vector_db_id}' with embedding model '{embed_model_id}'.")
+
+
+@dsl.component(
+    base_image=PYTHON_BASE_IMAGE,
+    packages_to_install=["requests"],
 )
 def import_test_pdfs(
-    input_docs_git_repo: str,
-    input_docs_git_branch: str,
-    input_docs_git_folder: str,
-    output_path: dsl.OutputPath("output-json"),
+    base_url: str,
+    pdf_filenames: str,
+    output_path: dsl.OutputPath("input-pdfs"),
 ):
     import os
+    import requests
     import shutil
 
-    from git import Repo
+    os.makedirs(output_path, exist_ok=True)
+    filenames = [f.strip() for f in pdf_filenames.split(",") if f.strip()]
 
-    full_repo_path = os.path.join(output_path, "docling")
-    Repo.clone_from(input_docs_git_repo, full_repo_path, branch=input_docs_git_branch)
+    for filename in filenames:
+        url = f"{base_url.rstrip('/')}/{filename}"
+        file_path = os.path.join(output_path, filename)
 
-    # Copy the pdfs the root of the output folder
-    pdfs_path = os.path.join(full_repo_path, input_docs_git_folder.lstrip("/"))
-    shutil.copytree(pdfs_path, output_path, dirs_exist_ok=True)
-
-    # Delete the repo
-    shutil.rmtree(full_repo_path)
+        try:
+            with requests.get(url, stream=True, timeout=10) as response:
+                response.raise_for_status()
+                with open(file_path, "wb") as f:
+                    shutil.copyfileobj(response.raw, f)
+            print(f"Downloaded {filename}")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to download {filename}: {e}, skipping.")
 
 
 @dsl.component(
@@ -54,8 +92,8 @@ def create_pdf_splits(
 
     # Split our entire directory of pdfs into n batches, where n == num_splits
     all_pdfs = [path.name for path in pathlib.Path(input_path).glob("*.pdf")]
-    splits = [all_pdfs[i::num_splits] for i in range(num_splits)]
-    return splits
+    splits = [batch for batch in (all_pdfs[i::num_splits] for i in range(num_splits)) if batch]
+    return splits or [[]]
 
 
 @dsl.component(
@@ -80,8 +118,9 @@ def docling_convert(
     from sentence_transformers import SentenceTransformer
     from docling.chunking import HybridChunker
     import logging
-    from llama_stack_client import LlamaStackClient, RAGDocument
+    from llama_stack_client import LlamaStackClient
     import uuid
+    import json
 
     _log = logging.getLogger(__name__)
 
@@ -105,37 +144,45 @@ def docling_convert(
             processed_docs += 1
             file_name = conv_res.input.file.stem
             document = conv_res.document
-            try:
-                document_markdown = document.export_to_markdown()
-            except Exception as e:
-                _log.warning(f"Failed to export document to markdown: {e}")
-                document_markdown = ""
 
             if document is None:
                 _log.warning(f"Document conversion failed for {file_name}")
                 continue
 
             embedding_model, chunker = setup_chunker_and_embedder(embed_model_id, max_tokens)
-            for chunk in chunker.chunk(dl_doc=document):
-                raw_chunk = chunker.serialize(chunk=chunk)
-                embedding = embed_text(raw_chunk, embedding_model)
-                
-                rag_doc = RAGDocument(
-                    document_id=str(uuid.uuid4()),
-                    content=raw_chunk,
-                    mime_type="text/markdown",
-                    metadata={
-                        "file_name": file_name,
-                        "full_document": document_markdown,
-                    },
-                    embedding=embedding,
-                )
 
-                client.tool_runtime.rag_tool.insert(
-                    documents=[rag_doc],
-                    vector_db_id=vector_db_id,
-                    chunk_size_in_tokens=max_tokens,
+            chunks_with_embedding = []
+            for chunk in chunker.chunk(dl_doc=document):
+                raw_chunk = chunker.contextualize(chunk)
+                embedding = embed_text(raw_chunk, embedding_model)
+
+                chunk_id = str(uuid.uuid4())  # Generate a unique ID for the chunk
+                content_token_count = chunker.tokenizer.count_tokens(raw_chunk)
+
+                # Prepare metadata object
+                metadata_obj = {
+                    "file_name": file_name,
+                    "document_id": chunk_id,
+                    "token_count": content_token_count,
+                }
+
+                metadata_str = json.dumps(metadata_obj)
+                metadata_token_count = chunker.tokenizer.count_tokens(metadata_str)
+                metadata_obj["metadata_token_count"] = metadata_token_count
+
+                chunks_with_embedding.append(
+                    {
+                        "content": raw_chunk,
+                        "mime_type": "text/markdown",
+                        "embedding": embedding,
+                        "metadata": metadata_obj,
+                    }
                 )
+            if chunks_with_embedding:
+                try:
+                    client.vector_io.insert(vector_db_id=vector_db_id, chunks=chunks_with_embedding)
+                except Exception as e:
+                    _log.error(f"Failed to insert embeddings into vector database: {e}")
 
         _log.info(f"Processed {processed_docs} documents successfully.")
 
@@ -173,33 +220,40 @@ def docling_convert(
 
 @dsl.pipeline()
 def docling_convert_pipeline(
-    input_docs_git_repo: str = "https://github.com/docling-project/docling",
-    input_docs_git_branch: str = "main",
-    input_docs_git_folder: str = "/tests/data/pdf/",
+    base_url: str = "https://raw.githubusercontent.com/docling-project/docling/main/tests/data/pdf",
+    pdf_filenames: str = "2203.01017v2.pdf, 2206.01062.pdf, 2305.03393v1-pg9.pdf, amt_handbook_sample.pdf, code_and_formula.pdf, multi_page.pdf, picture_classification.pdf, redp5110_sampled.pdf, right_to_left_01.pdf, right_to_left_02.pdf, right_to_left_03.pdf",
     num_workers: int = 1,
     vector_db_id: str = "my_demo_vector_id",
     service_url: str = "http://llama-test-milvus-kserve-service:8321",
-    embed_model_id: str = "sentence-transformers/all-MiniLM-L6-v2",
-    max_tokens: int = 2048,
+    embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
+    max_tokens: int = 512,
     use_gpu: bool = True,
     # tolerations: Optional[list] = [{"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Exists"}],
     # node_selector: Optional[dict] = {},
 ):
     """
     Converts PDF documents in a git repository to Markdown using Docling and generates embeddings
-    :param input_docs_git_repo: git repository containing the documents to convert
-    :param input_docs_git_branch: git branch containing the documents to convert
-    :param input_docs_git_folder: git folder containing the documents to convert
+    :param base_url: Base URL to fetch PDF files from
+    :param pdf_filenames: Comma-separated list of PDF filenames to download and convert
     :param num_workers: Number of docling worker pods to use
     :param use_gpu: Enable GPU in the docling workers
     :param vector_db_id: ID of the vector database to store embeddings
     :param service_url: URL of the Milvus service
+    :param embed_model_id: Model ID for embedding generation
+    :param max_tokens: Maximum number of tokens per chunk
     :return:
     """
+
+    register_task = register_vector_db(
+        service_url=service_url,
+        vector_db_id=vector_db_id,
+        embed_model_id=embed_model_id,
+    )
+    register_task.set_caching_options(False)
+
     import_task = import_test_pdfs(
-        input_docs_git_repo=input_docs_git_repo,
-        input_docs_git_branch=input_docs_git_branch,
-        input_docs_git_folder=input_docs_git_folder,
+        base_url=base_url,
+        pdf_filenames=pdf_filenames,
     )
     import_task.set_caching_options(True)
 
@@ -222,7 +276,7 @@ def docling_convert_pipeline(
             convert_task.set_cpu_request("500m")
             convert_task.set_cpu_limit("4")
             convert_task.set_memory_request("2Gi")
-            convert_task.set_memory_limit("4Gi")
+            convert_task.set_memory_limit("6Gi")
             convert_task.set_accelerator_type("nvidia.com/gpu")
             convert_task.set_accelerator_limit(1)
             add_toleration_json(convert_task, [{"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Exists"}])
@@ -240,7 +294,8 @@ def docling_convert_pipeline(
             convert_task.set_cpu_request("500m")
             convert_task.set_cpu_limit("4")
             convert_task.set_memory_request("2Gi")
-            convert_task.set_memory_limit("4Gi")
+            convert_task.set_memory_limit("6Gi")
+            
 
 if __name__ == "__main__":
     compiler.Compiler().compile(docling_convert_pipeline, package_path=__file__.replace(".py", "_compiled.yaml"))
