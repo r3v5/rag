@@ -57,32 +57,38 @@ Both pods should be in `Running` state.
 
 ## Testing the Deployment
 
-### 1. Port Forward the Service
+### 1. Port Forward the Services
 
-Before starting port-forward, check if port 8080 is already in use:
+Before starting port-forward, check if ports are already in use:
 ```bash
 lsof -i :8080
+lsof -i :8321
 ```
 
-If the port is in use, you can either:
+If the ports are in use, you can either:
 - Kill the existing process: `kill <PID>`
-- Or use a different port: `oc port-forward svc/vllm-predictor 8081:80`
+- Or use different ports
 
-Then start the port-forward:
+#### Port Forward vLLM Predictor
 ```bash
 oc port-forward svc/vllm-predictor 8080:80
 ```
 
-### 2. Test the API
+#### Port Forward Llama Stack Service
+```bash
+oc port-forward svc/lsd-llama-milvus-service 8321:8321
+```
 
-#### Check Available Models
+### 2. Test the APIs
+
+#### Direct vLLM Access (Port 8080)
+
+##### Check Available Models
 ```bash
 curl http://localhost:8080/v1/models
 ```
 
-Expected output should show the available model (vllm).
-
-#### Send a Test Query
+##### Send a Test Query
 ```bash
 curl -X POST http://localhost:8080/v1/completions \
   -H "Content-Type: application/json" \
@@ -93,12 +99,83 @@ curl -X POST http://localhost:8080/v1/completions \
   }'
 ```
 
+#### Get Route URL
+To get the route URL for external access:
+```bash
+# Get the route URL
+ROUTE_URL=$(oc get route lsd-llama-milvus -o jsonpath='{.spec.host}')
+echo "Route URL: http://$ROUTE_URL"
+```
+
+#### Llama Stack Access (Port 8321)
+
+##### Health Check
+```bash
+# Using port-forward
+curl http://localhost:8321/v1/health
+
+# Using route
+curl http://$ROUTE_URL/v1/health
+```
+
+##### List Available Models
+```bash
+# Using port-forward
+curl http://localhost:8321/v1/models
+
+# Using route
+curl http://$ROUTE_URL/v1/models
+```
+
+##### OpenAI-Compatible Completions
+```bash
+# Using port-forward
+curl -X POST http://localhost:8321/v1/openai/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "vllm",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is Retrieval Augmented Generation (RAG)?"
+      }
+    ]
+  }'
+
+# Using route
+curl -X POST http://$ROUTE_URL/v1/openai/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "vllm",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is Retrieval Augmented Generation (RAG)?"
+      }
+    ]
+  }'
+```
+
 ### 3. API Parameters
 
+#### vLLM Direct Access
 Required parameters for the completion endpoint:
 - `model`: "vllm" (the model name)
 - `prompt`: Your question or text
 - `max_tokens`: Maximum length of the response (e.g., 100)
+
+#### Llama Stack OpenAI-Compatible API
+Required parameters for the chat completions endpoint:
+- `model`: "vllm" (the model name)
+- `messages`: Array of message objects with:
+  - `role`: "user" or "assistant"
+  - `content`: The message text
+
+### 4. Available Models
+
+The deployment provides access to two models:
+- `vllm`: Language model for text generation
+- `ibm-granite/granite-embedding-125m-english`: Embedding model for vector operations
 
 ## Troubleshooting
 
