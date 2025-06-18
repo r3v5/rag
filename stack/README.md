@@ -1,5 +1,8 @@
 # Installation of llama-stack-milvus distribution on OpenShift
 
+## Prerequisite
+* The Llama Stack Operator installed on your cluster following this [guide](https://github.com/opendatahub-io/llama-stack-k8s-operator?tab=readme-ov-file#installation)
+
 These `kustomize` manifests provides a way to install a LlamaStackDistribution 
 that can be used to perform Retrieval-Augmented Generation (RAG) with Milvus as the vector database.
 
