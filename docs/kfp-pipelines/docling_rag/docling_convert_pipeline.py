@@ -226,8 +226,8 @@ def docling_convert_pipeline(
     vector_db_id: str = "my_demo_vector_id",
     service_url: str = "http://llama-test-milvus-kserve-service:8321",
     embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
-    max_tokens: int = 512,
-    use_gpu: bool = True,
+    max_tokens: int = 512
+    use_gpu: bool = True, # use only if you have additional gpu worker
     # tolerations: Optional[list] = [{"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Exists"}],
     # node_selector: Optional[dict] = {},
 ):
