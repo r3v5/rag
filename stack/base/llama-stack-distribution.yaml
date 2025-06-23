@@ -20,10 +20,5 @@ spec:
       port: 8321
     distribution:
       image: quay.io/opendatahub/llama-stack:odh
-    podOverrides:
-      volumeMounts:
-      - mountPath: "/root/.llama"
-        name: llama-storage
-      volumes:
-      - emptyDir: {}
-        name: llama-storage
+    storage:
+      size: "5Gi"
