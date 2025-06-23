@@ -7,7 +7,7 @@
 #    max_tokens: int [Default: 512.0]
 #    num_workers: int [Default: 1.0]
 #    pdf_filenames: str [Default: '2203.01017v2.pdf, 2206.01062.pdf, 2305.03393v1-pg9.pdf, amt_handbook_sample.pdf, code_and_formula.pdf, multi_page.pdf, picture_classification.pdf, redp5110_sampled.pdf, right_to_left_01.pdf, right_to_left_02.pdf, right_to_left_03.pdf']
-#    service_url: str [Default: 'http://llama-test-milvus-kserve-service:8321']
+#    service_url: str [Default: 'http://lsd-llama-milvus-service:8321']
 #    use_gpu: bool [Default: True]
 #    vector_db_id: str [Default: 'my_demo_vector_id']
 components:
@@ -610,13 +610,13 @@ deploymentSpec:
           \ str,\n    embed_model_id: str,\n):\n    from llama_stack_client import\
           \ LlamaStackClient\n\n    client = LlamaStackClient(base_url=service_url)\n\
           \n    models = client.models.list()\n    matching_model = next((m for m\
-          \ in models if m.identifier == embed_model_id), None)\n\n    if not matching_model:\n\
-          \        raise ValueError(f\"Model with ID '{embed_model_id}' not found\
-          \ on LlamaStack server.\")\n\n    if matching_model.model_type != \"embedding\"\
-          :\n        raise ValueError(f\"Model '{embed_model_id}' is not an embedding\
-          \ model\")\n\n    embedding_dimension = matching_model.metadata[\"embedding_dimension\"\
-          ]\n\n    # Register the vector DB\n    _ = client.vector_dbs.register(\n\
-          \        vector_db_id=vector_db_id,\n        embedding_model=embed_model_id,\n\
+          \ in models if m.provider_resource_id == embed_model_id), None)\n\n    if\
+          \ not matching_model:\n        raise ValueError(f\"Model with ID '{embed_model_id}'\
+          \ not found on LlamaStack server.\")\n\n    if matching_model.model_type\
+          \ != \"embedding\":\n        raise ValueError(f\"Model '{embed_model_id}'\
+          \ is not an embedding model\")\n\n    embedding_dimension = matching_model.metadata[\"\
+          embedding_dimension\"]\n\n    # Register the vector DB\n    _ = client.vector_dbs.register(\n\
+          \        vector_db_id=vector_db_id,\n        embedding_model=matching_model.identifier,\n\
           \        embedding_dimension=embedding_dimension,\n        provider_id=\"\
           milvus\",\n    )\n    print(f\"Registered vector DB '{vector_db_id}' with\
           \ embedding model '{embed_model_id}'.\")\n\n"
@@ -736,7 +736,7 @@ root:
         isOptional: true
         parameterType: STRING
       service_url:
-        defaultValue: http://llama-test-milvus-kserve-service:8321
+        defaultValue: http://lsd-llama-milvus-service:8321
         description: URL of the Milvus service
         isOptional: true
         parameterType: STRING

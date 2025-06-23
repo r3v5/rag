@@ -31,7 +31,7 @@ def register_vector_db(
     client = LlamaStackClient(base_url=service_url)
 
     models = client.models.list()
-    matching_model = next((m for m in models if m.identifier == embed_model_id), None)
+    matching_model = next((m for m in models if m.provider_resource_id == embed_model_id), None)
 
     if not matching_model:
         raise ValueError(f"Model with ID '{embed_model_id}' not found on LlamaStack server.")
@@ -44,7 +44,7 @@ def register_vector_db(
     # Register the vector DB
     _ = client.vector_dbs.register(
         vector_db_id=vector_db_id,
-        embedding_model=embed_model_id,
+        embedding_model=matching_model.identifier,
         embedding_dimension=embedding_dimension,
         provider_id="milvus",
     )
@@ -224,7 +224,7 @@ def docling_convert_pipeline(
     pdf_filenames: str = "2203.01017v2.pdf, 2206.01062.pdf, 2305.03393v1-pg9.pdf, amt_handbook_sample.pdf, code_and_formula.pdf, multi_page.pdf, picture_classification.pdf, redp5110_sampled.pdf, right_to_left_01.pdf, right_to_left_02.pdf, right_to_left_03.pdf",
     num_workers: int = 1,
     vector_db_id: str = "my_demo_vector_id",
-    service_url: str = "http://llama-test-milvus-kserve-service:8321",
+    service_url: str = "http://lsd-llama-milvus-service:8321",
     embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
     max_tokens: int = 512,
     use_gpu: bool = True,
