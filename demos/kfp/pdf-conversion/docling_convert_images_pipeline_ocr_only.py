@@ -232,10 +232,7 @@ def docling_convert_images(
     output_path = pathlib.Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Original code using splits
     input_images = [input_path / name for name in image_split]
-    # Alternative not using splits
-    # input_images = pathlib.Path(input_path).glob("*.jpg") + pathlib.Path(input_path).glob("*.png")
 
     # Configure Docling for image processing with OCR
     from docling.datamodel.pipeline_options import EasyOcrOptions
@@ -257,10 +254,8 @@ def docling_convert_images(
         raises_on_error=True,
     )
 
-    # Initialize LlamaStack client
     client = LlamaStackClient(base_url=service_url)
 
-    # Process the conversion results and insert embeddings into the vector database
     process_and_insert_embeddings(conv_results)
 
 
