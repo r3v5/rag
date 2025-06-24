@@ -1,6 +1,6 @@
 # ruff: noqa: PLC0415,UP007,UP035,UP006,E712
 # SPDX-License-Identifier: Apache-2.0
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Iterator, Optional
 import logging
 import pathlib
 
@@ -141,15 +141,15 @@ def docling_convert_images(
     import json
     import uuid
     import logging
-    from typing import List, Dict, Any
+    from typing import List, Any
 
     from docling.datamodel.base_models import InputFormat, ConversionStatus
+    from docling.datamodel.document import ConversionResult
     from docling.document_converter import DocumentConverter, ImageFormatOption
     from transformers import AutoTokenizer
     from sentence_transformers import SentenceTransformer
     from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
     from llama_stack_client import LlamaStackClient
-    from typing import Iterator
 
     _log = logging.getLogger(__name__)
 
@@ -169,7 +169,9 @@ def docling_convert_images(
         """Generate embeddings for text content"""
         return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]
 
-    def process_and_insert_embeddings(conv_results):
+    def process_and_insert_embeddings(
+        conv_results: Iterator[ConversionResult], client: LlamaStackClient
+    ) -> None:
         processed_docs = 0
         for conv_res in conv_results:
             if conv_res.status != ConversionStatus.SUCCESS:
@@ -256,7 +258,7 @@ def docling_convert_images(
 
     client = LlamaStackClient(base_url=service_url)
 
-    process_and_insert_embeddings(conv_results)
+    process_and_insert_embeddings(conv_results, client)
 
 
 @dsl.pipeline()
