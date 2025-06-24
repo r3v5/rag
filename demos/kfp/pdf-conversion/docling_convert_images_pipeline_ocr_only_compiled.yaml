@@ -374,13 +374,13 @@ deploymentSpec:
           ),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"output-md\"\
           ),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url: str,\n\
           \    vector_db_id: str,\n) -> None:\n    import pathlib\n    import json\n\
-          \    import uuid\n    import logging\n    from typing import List, Dict,\
-          \ Any\n\n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
-          \    from docling.document_converter import DocumentConverter, ImageFormatOption\n\
-          \    from transformers import AutoTokenizer\n    from sentence_transformers\
-          \ import SentenceTransformer\n    from docling_core.transforms.chunker.hybrid_chunker\
-          \ import HybridChunker\n    from llama_stack_client import LlamaStackClient\n\
-          \    from typing import Iterator\n\n    _log = logging.getLogger(__name__)\n\
+          \    import uuid\n    import logging\n    from typing import List, Any\n\
+          \n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
+          \    from docling.datamodel.document import ConversionResult\n    from docling.document_converter\
+          \ import DocumentConverter, ImageFormatOption\n    from transformers import\
+          \ AutoTokenizer\n    from sentence_transformers import SentenceTransformer\n\
+          \    from docling_core.transforms.chunker.hybrid_chunker import HybridChunker\n\
+          \    from llama_stack_client import LlamaStackClient\n\n    _log = logging.getLogger(__name__)\n\
           \n    # ---- Helper functions ----\n    def setup_chunker_and_embedder(\n\
           \        embed_model_id: str, max_tokens: int\n    ) -> tuple[SentenceTransformer,\
           \ HybridChunker]:\n        \"\"\"Setup embedding model and chunker for text\
@@ -391,10 +391,11 @@ deploymentSpec:
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ List[float]:\n        \"\"\"Generate embeddings for text content\"\"\"\
           \n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
-          \n    def process_and_insert_embeddings(conv_results):\n        processed_docs\
-          \ = 0\n        for conv_res in conv_results:\n            if conv_res.status\
-          \ != ConversionStatus.SUCCESS:\n                _log.warning(\n        \
-          \            f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
+          \n    def process_and_insert_embeddings(\n        conv_results: Iterator[ConversionResult],\
+          \ client: LlamaStackClient\n    ) -> None:\n        processed_docs = 0\n\
+          \        for conv_res in conv_results:\n            if conv_res.status !=\
+          \ ConversionStatus.SUCCESS:\n                _log.warning(\n           \
+          \         f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
           \n                )\n                continue\n\n            processed_docs\
           \ += 1\n            file_name = conv_res.input.file.stem\n            document\
           \ = conv_res.document\n\n            if document is None:\n            \
@@ -424,21 +425,16 @@ deploymentSpec:
           \ {e}\")\n\n                _log.info(f\"Processed {processed_docs} documents\
           \ successfully.\")\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
-          \ exist_ok=True)\n\n    # Original code using splits\n    input_images =\
-          \ [input_path / name for name in image_split]\n    # Alternative not using\
-          \ splits\n    # input_images = pathlib.Path(input_path).glob(\"*.jpg\")\
-          \ + pathlib.Path(input_path).glob(\"*.png\")\n\n    # Configure Docling\
-          \ for image processing with OCR\n    from docling.datamodel.pipeline_options\
+          \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
+          \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
           \ import EasyOcrOptions\n\n    # Enable OCR for text extraction from images\n\
           \    image_format_options = ImageFormatOption(\n        do_ocr=True,\n \
           \       ocr_options=EasyOcrOptions(\n            lang=[\"en\"],  # Language\
           \ for OCR\n        ),\n    )\n\n    doc_converter = DocumentConverter(\n\
           \        format_options={InputFormat.IMAGE: image_format_options}\n    )\n\
           \n    conv_results = doc_converter.convert_all(\n        input_images,\n\
-          \        raises_on_error=True,\n    )\n\n    # Initialize LlamaStack client\n\
-          \    client = LlamaStackClient(base_url=service_url)\n\n    # Process the\
-          \ conversion results and insert embeddings into the vector database\n  \
-          \  process_and_insert_embeddings(conv_results)\n\n"
+          \        raises_on_error=True,\n    )\n\n    client = LlamaStackClient(base_url=service_url)\n\
+          \n    process_and_insert_embeddings(conv_results, client)\n\n"
         image: quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py311-ubi9@sha256:4706be608af3f33c88700ef6ef6a99e716fc95fc7d2e879502e81c0022fd840e
         resources:
           accelerator:
@@ -486,13 +482,13 @@ deploymentSpec:
           ),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"output-md\"\
           ),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url: str,\n\
           \    vector_db_id: str,\n) -> None:\n    import pathlib\n    import json\n\
-          \    import uuid\n    import logging\n    from typing import List, Dict,\
-          \ Any\n\n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
-          \    from docling.document_converter import DocumentConverter, ImageFormatOption\n\
-          \    from transformers import AutoTokenizer\n    from sentence_transformers\
-          \ import SentenceTransformer\n    from docling_core.transforms.chunker.hybrid_chunker\
-          \ import HybridChunker\n    from llama_stack_client import LlamaStackClient\n\
-          \    from typing import Iterator\n\n    _log = logging.getLogger(__name__)\n\
+          \    import uuid\n    import logging\n    from typing import List, Any\n\
+          \n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
+          \    from docling.datamodel.document import ConversionResult\n    from docling.document_converter\
+          \ import DocumentConverter, ImageFormatOption\n    from transformers import\
+          \ AutoTokenizer\n    from sentence_transformers import SentenceTransformer\n\
+          \    from docling_core.transforms.chunker.hybrid_chunker import HybridChunker\n\
+          \    from llama_stack_client import LlamaStackClient\n\n    _log = logging.getLogger(__name__)\n\
           \n    # ---- Helper functions ----\n    def setup_chunker_and_embedder(\n\
           \        embed_model_id: str, max_tokens: int\n    ) -> tuple[SentenceTransformer,\
           \ HybridChunker]:\n        \"\"\"Setup embedding model and chunker for text\
@@ -503,10 +499,11 @@ deploymentSpec:
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ List[float]:\n        \"\"\"Generate embeddings for text content\"\"\"\
           \n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
-          \n    def process_and_insert_embeddings(conv_results):\n        processed_docs\
-          \ = 0\n        for conv_res in conv_results:\n            if conv_res.status\
-          \ != ConversionStatus.SUCCESS:\n                _log.warning(\n        \
-          \            f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
+          \n    def process_and_insert_embeddings(\n        conv_results: Iterator[ConversionResult],\
+          \ client: LlamaStackClient\n    ) -> None:\n        processed_docs = 0\n\
+          \        for conv_res in conv_results:\n            if conv_res.status !=\
+          \ ConversionStatus.SUCCESS:\n                _log.warning(\n           \
+          \         f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
           \n                )\n                continue\n\n            processed_docs\
           \ += 1\n            file_name = conv_res.input.file.stem\n            document\
           \ = conv_res.document\n\n            if document is None:\n            \
@@ -536,21 +533,16 @@ deploymentSpec:
           \ {e}\")\n\n                _log.info(f\"Processed {processed_docs} documents\
           \ successfully.\")\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
-          \ exist_ok=True)\n\n    # Original code using splits\n    input_images =\
-          \ [input_path / name for name in image_split]\n    # Alternative not using\
-          \ splits\n    # input_images = pathlib.Path(input_path).glob(\"*.jpg\")\
-          \ + pathlib.Path(input_path).glob(\"*.png\")\n\n    # Configure Docling\
-          \ for image processing with OCR\n    from docling.datamodel.pipeline_options\
+          \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
+          \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
           \ import EasyOcrOptions\n\n    # Enable OCR for text extraction from images\n\
           \    image_format_options = ImageFormatOption(\n        do_ocr=True,\n \
           \       ocr_options=EasyOcrOptions(\n            lang=[\"en\"],  # Language\
           \ for OCR\n        ),\n    )\n\n    doc_converter = DocumentConverter(\n\
           \        format_options={InputFormat.IMAGE: image_format_options}\n    )\n\
           \n    conv_results = doc_converter.convert_all(\n        input_images,\n\
-          \        raises_on_error=True,\n    )\n\n    # Initialize LlamaStack client\n\
-          \    client = LlamaStackClient(base_url=service_url)\n\n    # Process the\
-          \ conversion results and insert embeddings into the vector database\n  \
-          \  process_and_insert_embeddings(conv_results)\n\n"
+          \        raises_on_error=True,\n    )\n\n    client = LlamaStackClient(base_url=service_url)\n\
+          \n    process_and_insert_embeddings(conv_results, client)\n\n"
         image: quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py311-ubi9@sha256:4706be608af3f33c88700ef6ef6a99e716fc95fc7d2e879502e81c0022fd840e
         resources:
           cpuLimit: 4.0
