@@ -7,23 +7,25 @@ spec:
   replicas: 1
   server:
     containerSpec:
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "500Mi"
+        limits:
+          cpu: "2"
+          memory: "12Gi"
       env:
-      - name: INFERENCE_MODEL
-        value: vllm
-      - name: VLLM_URL
-        value: http://vllm-predictor/v1
-      - name: MILVUS_DB_PATH
-        value: ~/.llama/milvus.db
-      - name: FMS_ORCHESTRATOR_URL
-        value: 'http://localhost'
+        - name: INFERENCE_MODEL
+          value: vllm
+        - name: VLLM_URL
+          value: http://vllm-predictor/v1
+        - name: MILVUS_DB_PATH
+          value: ~/.llama/milvus.db
+        - name: FMS_ORCHESTRATOR_URL
+          value: "http://localhost"
       name: llama-stack
       port: 8321
     distribution:
       image: quay.io/opendatahub/llama-stack:odh
-    podOverrides:
-      volumeMounts:
-      - mountPath: "/root/.llama"
-        name: llama-storage
-      volumes:
-      - emptyDir: {}
-        name: llama-storage
+    storage:
+      size: "5Gi"
