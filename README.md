@@ -10,6 +10,8 @@ Follow the steps outlined in [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the RAG St
 You can find demos created by the team in the [demos](demos) folder.
 ### Benchmarking
 We also provide benchmarking scripts for retrieval in the [benchmarks](benchmarks) folder.
+### Contributing
+Please see our [CONTRIBUTING.md](CONTRIBUTING.md) guide for best practices when contributing to this repository.
 
 ## License
 This project is licensed under the Apache 2.0 License - see [LICENSE](LICENSE) for more details.
