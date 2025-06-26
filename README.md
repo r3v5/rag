@@ -7,9 +7,9 @@ The RAG project serves as a repository of comprehensive demonstrations, benchmar
 ### Deployment
 Follow the steps outlined in [DEPLOYMENT.md](DEPLOYMENT.md) to deploy the RAG Stack on an OpenShift/Kubernetes cluster.
 ### Demos
-You can find demos created by the team in the [docs](docs) folder.
+You can find demos created by the team in the [demos](demos) folder.
 ### Benchmarking
-We also provide benchmarking scripts for retrieval in the [scripts](scripts) folder.
+We also provide benchmarking scripts for retrieval in the [benchmarks](benchmarks) folder.
 
 ## License
 This project is licensed under the Apache 2.0 License - see [LICENSE](LICENSE) for more details.
