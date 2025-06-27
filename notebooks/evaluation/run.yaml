@@ -17,8 +17,8 @@ providers:
     provider_type: remote::watsonx
     config:
       url: ${env.WATSONX_BASE_URL:https://us-south.ml.cloud.ibm.com}
-      api_key: ${env.WATSONX_API_KEY:}
-      project_id: ${env.WATSONX_PROJECT_ID:}
+      api_key: ${env.WATSONX_API_KEY}
+      project_id: ${env.WATSONX_PROJECT_ID}
       timeout: 1200
   - provider_id: llama-openai-compat
     provider_type: remote::llama-openai-compat

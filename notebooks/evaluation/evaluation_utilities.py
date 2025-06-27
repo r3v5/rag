@@ -28,7 +28,7 @@ import logging
 from pathlib import Path
 import copy
 import time
-import sys
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -738,8 +738,7 @@ Is the candidate answer attempting to answer the question?
 # Assisted by Google Gemini
 def check_if_answer_is_attempting_to_answer_question(question: str, candidate_answer: str, model: LLM) -> bool:
     """
-    Constructs a prompt and calls an666372
-     LLM (via LlamaIndex) to determine
+    Constructs a prompt and calls an LLM (via LlamaIndex) to determine
     if a candidate answer is attempting to directly address the given question.
 
     The LLM is explicitly instructed to ignore the correctness of the answer
@@ -802,7 +801,7 @@ def parse_llm_relevance_response(llm_response: str) -> bool:
     # 2. Remove punctuation. Create a translation table to remove all punctuation.
     # This covers cases like "YES." or "No!"
     # See https://stackoverflow.com/questions/34293875/how-to-remove-punctuation-marks-from-a-string-in-python-3-x-using-translate
-    # for more about this way or removing punctuation.ß
+    # for more about this way or removing punctuation.
     translator = str.maketrans('', '', string.punctuation)
     processed_response = processed_response.translate(translator)
 
