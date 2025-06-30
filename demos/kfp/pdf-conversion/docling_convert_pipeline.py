@@ -95,12 +95,12 @@ def create_pdf_splits(
     splits = [batch for batch in (all_pdfs[i::num_splits] for i in range(num_splits)) if batch]
     return splits or [[]]
 
-
+# This component converts PDFs to Markdown and ingests the embeddings into LlamaStack's vector store
 @dsl.component(
     base_image=PYTORCH_CUDA_IMAGE,
     packages_to_install=["docling", "transformers", "sentence-transformers", "llama-stack", "llama-stack-client", "pymilvus", "fire"],
 )
-def docling_convert(
+def docling_convert_and_ingest(
     input_path: dsl.InputPath("input-pdfs"),
     pdf_split: List[str],
     output_path: dsl.OutputPath("output-md"),
@@ -264,7 +264,7 @@ def docling_convert_pipeline(
 
     with dsl.ParallelFor(pdf_splits.output) as pdf_split:
         with dsl.If(use_gpu == True):
-            convert_task = docling_convert(
+            convert_task = docling_convert_and_ingest(
                 input_path=import_task.output,
                 pdf_split=pdf_split,
                 embed_model_id=embed_model_id,
@@ -282,7 +282,7 @@ def docling_convert_pipeline(
             add_toleration_json(convert_task, [{"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Exists"}])
             add_node_selector_json(convert_task, {})
         with dsl.Else():
-            convert_task = docling_convert(
+            convert_task = docling_convert_and_ingest(
                 input_path=import_task.output,
                 pdf_split=pdf_split,
                 embed_model_id=embed_model_id,
