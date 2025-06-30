@@ -32,7 +32,7 @@ This pipeline converts your PDF documents to Markdown format using Docling, chun
 - Divides PDFs into batches for parallel processing
 - Configurable number of splits based on available workers
 
-### 3. Docling Convert (`docling_convert`)
+### 3. Docling Convert and Ingest data into Llama Stack's Vector Store (`docling_convert_and_ingest`)
 
 - Converts PDFs to Markdown using Docling
 - Generates embeddings using sentence transformers
