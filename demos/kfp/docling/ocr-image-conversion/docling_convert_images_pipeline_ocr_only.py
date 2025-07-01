@@ -283,7 +283,6 @@ def docling_convert_pipeline(
     :param base_url: Base URL to fetch image files from
     :param image_filenames: Comma-separated list of image filenames to download and convert
     :param num_workers: Number of docling worker pods to use
-    :param use_gpu: Enable GPU in the docling workers
     :param vector_db_id: ID of the vector database to store embeddings
     :param service_url: URL of the Milvus service
     :param embed_model_id: Model ID for embedding generation
