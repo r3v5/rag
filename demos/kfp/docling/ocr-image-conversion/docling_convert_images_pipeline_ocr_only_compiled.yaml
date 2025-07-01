@@ -14,10 +14,10 @@ components:
   comp-condition-3:
     dag:
       tasks:
-        docling-convert-images:
+        docling-convert-and-ingest-images:
           cachingOptions: {}
           componentRef:
-            name: comp-docling-convert-images
+            name: comp-docling-convert-and-ingest-images
           inputs:
             artifacts:
               input_path:
@@ -34,7 +34,7 @@ components:
               vector_db_id:
                 componentInputParameter: pipelinechannel--vector_db_id
           taskInfo:
-            name: docling-convert-images
+            name: docling-convert-and-ingest-images
     inputDefinitions:
       artifacts:
         pipelinechannel--import-test-images-output_path:
@@ -57,10 +57,10 @@ components:
   comp-condition-4:
     dag:
       tasks:
-        docling-convert-images-2:
+        docling-convert-and-ingest-images-2:
           cachingOptions: {}
           componentRef:
-            name: comp-docling-convert-images-2
+            name: comp-docling-convert-and-ingest-images-2
           inputs:
             artifacts:
               input_path:
@@ -77,7 +77,7 @@ components:
               vector_db_id:
                 componentInputParameter: pipelinechannel--vector_db_id
           taskInfo:
-            name: docling-convert-images-2
+            name: docling-convert-and-ingest-images-2
     inputDefinitions:
       artifacts:
         pipelinechannel--import-test-images-output_path:
@@ -183,8 +183,8 @@ components:
       parameters:
         Output:
           parameterType: LIST
-  comp-docling-convert-images:
-    executorLabel: exec-docling-convert-images
+  comp-docling-convert-and-ingest-images:
+    executorLabel: exec-docling-convert-and-ingest-images
     inputDefinitions:
       artifacts:
         input_path:
@@ -208,8 +208,8 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-  comp-docling-convert-images-2:
-    executorLabel: exec-docling-convert-images-2
+  comp-docling-convert-and-ingest-images-2:
+    executorLabel: exec-docling-convert-and-ingest-images-2
     inputDefinitions:
       artifacts:
         input_path:
@@ -336,19 +336,19 @@ deploymentSpec:
           \    # Split our entire directory of images into n batches, where n == num_splits\n\
           \    # Support multiple image formats\n    all_images = []\n    image_extensions\
           \ = [\n        \"*.png\",\n        \"*.jpg\",\n        \"*.jpeg\",\n   \
-          \ ]\n\n    for ext in image_extensions:\n        all_images.extend([path.name\
-          \ for path in pathlib.Path(input_path).glob(ext)])\n\n    splits = [\n \
-          \       batch\n        for batch in (all_images[i::num_splits] for i in\
-          \ range(num_splits))\n        if batch\n    ]\n    return splits or [[]]\n\
-          \n"
+          \     \"*.tiff\",\n        \"*.bmp\",\n        \"*.webp\",\n    ]\n\n  \
+          \  for ext in image_extensions:\n        all_images.extend([path.name for\
+          \ path in pathlib.Path(input_path).glob(ext)])\n\n    splits = [\n     \
+          \   batch\n        for batch in (all_images[i::num_splits] for i in range(num_splits))\n\
+          \        if batch\n    ]\n    return splits or [[]]\n\n"
         image: registry.redhat.io/ubi9/python-312@sha256:e80ff3673c95b91f0dafdbe97afb261eab8244d7fd8b47e20ffcbcfee27fb168
-    exec-docling-convert-images:
+    exec-docling-convert-and-ingest-images:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - docling_convert_images
+        - docling_convert_and_ingest_images
         command:
         - sh
         - -c
@@ -370,21 +370,21 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef docling_convert_images(\n    input_path: dsl.InputPath(\"input-images\"\
-          ),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"output-md\"\
-          ),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url: str,\n\
-          \    vector_db_id: str,\n) -> None:\n    import pathlib\n    import json\n\
-          \    import uuid\n    import logging\n    from typing import List, Any\n\
-          \n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
-          \    from docling.datamodel.document import ConversionResult\n    from docling.document_converter\
-          \ import DocumentConverter, ImageFormatOption\n    from transformers import\
-          \ AutoTokenizer\n    from sentence_transformers import SentenceTransformer\n\
-          \    from docling_core.transforms.chunker.hybrid_chunker import HybridChunker\n\
-          \    from llama_stack_client import LlamaStackClient\n\n    _log = logging.getLogger(__name__)\n\
-          \n    # ---- Helper functions ----\n    def setup_chunker_and_embedder(\n\
-          \        embed_model_id: str, max_tokens: int\n    ) -> tuple[SentenceTransformer,\
-          \ HybridChunker]:\n        \"\"\"Setup embedding model and chunker for text\
-          \ processing\"\"\"\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
+          \ *\n\ndef docling_convert_and_ingest_images(\n    input_path: dsl.InputPath(\"\
+          input-images\"),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"\
+          output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
+          \ str,\n    vector_db_id: str,\n) -> None:\n    import pathlib\n    import\
+          \ json\n    import uuid\n    import logging\n\n    from docling.datamodel.base_models\
+          \ import InputFormat, ConversionStatus\n    from docling.datamodel.document\
+          \ import ConversionResult\n    from docling.document_converter import DocumentConverter,\
+          \ ImageFormatOption\n    from transformers import AutoTokenizer\n    from\
+          \ sentence_transformers import SentenceTransformer\n    from docling_core.transforms.chunker.hybrid_chunker\
+          \ import HybridChunker\n    from llama_stack_client import LlamaStackClient\n\
+          \n    _log = logging.getLogger(__name__)\n\n    # ---- Helper functions\
+          \ ----\n    def setup_chunker_and_embedder(\n        embed_model_id: str,\
+          \ max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
+          \        \"\"\"Setup embedding model and chunker for text processing\"\"\
+          \"\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
           \        embedding_model = SentenceTransformer(embed_model_id)\n       \
           \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
@@ -393,16 +393,16 @@ deploymentSpec:
           \n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
           \n    def process_and_insert_embeddings(\n        conv_results: Iterator[ConversionResult],\
           \ client: LlamaStackClient\n    ) -> None:\n        processed_docs = 0\n\
-          \        for conv_res in conv_results:\n            if conv_res.status !=\
-          \ ConversionStatus.SUCCESS:\n                _log.warning(\n           \
-          \         f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
-          \n                )\n                continue\n\n            processed_docs\
-          \ += 1\n            file_name = conv_res.input.file.stem\n            document\
-          \ = conv_res.document\n\n            if document is None:\n            \
-          \    _log.warning(f\"Document conversion failed for {file_name}\")\n   \
-          \             continue\n\n            embedding_model, chunker = setup_chunker_and_embedder(\n\
-          \                embed_model_id, max_tokens\n            )\n\n         \
-          \   chunks_with_embedding = []\n            for chunk in chunker.chunk(dl_doc=document):\n\
+          \        embedding_model, chunker = setup_chunker_and_embedder(\n      \
+          \      embed_model_id, max_tokens\n        )\n\n        for conv_res in\
+          \ conv_results:\n            if conv_res.status != ConversionStatus.SUCCESS:\n\
+          \                _log.warning(\n                    f\"Conversion failed\
+          \ for {conv_res.input.file.stem}: {conv_res.status}\"\n                )\n\
+          \                continue\n\n            processed_docs += 1\n         \
+          \   file_name = conv_res.input.file.stem\n            document = conv_res.document\n\
+          \n            if document is None:\n                _log.warning(f\"Document\
+          \ conversion failed for {file_name}\")\n                continue\n\n   \
+          \         chunks_with_embedding = []\n            for chunk in chunker.chunk(dl_doc=document):\n\
           \                raw_chunk = chunker.contextualize(chunk)\n            \
           \    embedding = embed_text(raw_chunk, embedding_model)\n\n            \
           \    chunk_id = str(uuid.uuid4())  # Generate a unique ID for the chunk\n\
@@ -422,8 +422,8 @@ deploymentSpec:
           \                      vector_db_id=vector_db_id, chunks=chunks_with_embedding\n\
           \                    )\n                except Exception as e:\n       \
           \             _log.error(f\"Failed to insert embeddings into vector database:\
-          \ {e}\")\n\n                _log.info(f\"Processed {processed_docs} documents\
-          \ successfully.\")\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
+          \ {e}\")\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
+          )\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
           \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
           \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
@@ -450,13 +450,13 @@ deploymentSpec:
           resourceCpuRequest: 500m
           resourceMemoryLimit: 6Gi
           resourceMemoryRequest: 2Gi
-    exec-docling-convert-images-2:
+    exec-docling-convert-and-ingest-images-2:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - docling_convert_images
+        - docling_convert_and_ingest_images
         command:
         - sh
         - -c
@@ -478,21 +478,21 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef docling_convert_images(\n    input_path: dsl.InputPath(\"input-images\"\
-          ),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"output-md\"\
-          ),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url: str,\n\
-          \    vector_db_id: str,\n) -> None:\n    import pathlib\n    import json\n\
-          \    import uuid\n    import logging\n    from typing import List, Any\n\
-          \n    from docling.datamodel.base_models import InputFormat, ConversionStatus\n\
-          \    from docling.datamodel.document import ConversionResult\n    from docling.document_converter\
-          \ import DocumentConverter, ImageFormatOption\n    from transformers import\
-          \ AutoTokenizer\n    from sentence_transformers import SentenceTransformer\n\
-          \    from docling_core.transforms.chunker.hybrid_chunker import HybridChunker\n\
-          \    from llama_stack_client import LlamaStackClient\n\n    _log = logging.getLogger(__name__)\n\
-          \n    # ---- Helper functions ----\n    def setup_chunker_and_embedder(\n\
-          \        embed_model_id: str, max_tokens: int\n    ) -> tuple[SentenceTransformer,\
-          \ HybridChunker]:\n        \"\"\"Setup embedding model and chunker for text\
-          \ processing\"\"\"\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
+          \ *\n\ndef docling_convert_and_ingest_images(\n    input_path: dsl.InputPath(\"\
+          input-images\"),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"\
+          output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
+          \ str,\n    vector_db_id: str,\n) -> None:\n    import pathlib\n    import\
+          \ json\n    import uuid\n    import logging\n\n    from docling.datamodel.base_models\
+          \ import InputFormat, ConversionStatus\n    from docling.datamodel.document\
+          \ import ConversionResult\n    from docling.document_converter import DocumentConverter,\
+          \ ImageFormatOption\n    from transformers import AutoTokenizer\n    from\
+          \ sentence_transformers import SentenceTransformer\n    from docling_core.transforms.chunker.hybrid_chunker\
+          \ import HybridChunker\n    from llama_stack_client import LlamaStackClient\n\
+          \n    _log = logging.getLogger(__name__)\n\n    # ---- Helper functions\
+          \ ----\n    def setup_chunker_and_embedder(\n        embed_model_id: str,\
+          \ max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
+          \        \"\"\"Setup embedding model and chunker for text processing\"\"\
+          \"\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
           \        embedding_model = SentenceTransformer(embed_model_id)\n       \
           \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
@@ -501,16 +501,16 @@ deploymentSpec:
           \n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
           \n    def process_and_insert_embeddings(\n        conv_results: Iterator[ConversionResult],\
           \ client: LlamaStackClient\n    ) -> None:\n        processed_docs = 0\n\
-          \        for conv_res in conv_results:\n            if conv_res.status !=\
-          \ ConversionStatus.SUCCESS:\n                _log.warning(\n           \
-          \         f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
-          \n                )\n                continue\n\n            processed_docs\
-          \ += 1\n            file_name = conv_res.input.file.stem\n            document\
-          \ = conv_res.document\n\n            if document is None:\n            \
-          \    _log.warning(f\"Document conversion failed for {file_name}\")\n   \
-          \             continue\n\n            embedding_model, chunker = setup_chunker_and_embedder(\n\
-          \                embed_model_id, max_tokens\n            )\n\n         \
-          \   chunks_with_embedding = []\n            for chunk in chunker.chunk(dl_doc=document):\n\
+          \        embedding_model, chunker = setup_chunker_and_embedder(\n      \
+          \      embed_model_id, max_tokens\n        )\n\n        for conv_res in\
+          \ conv_results:\n            if conv_res.status != ConversionStatus.SUCCESS:\n\
+          \                _log.warning(\n                    f\"Conversion failed\
+          \ for {conv_res.input.file.stem}: {conv_res.status}\"\n                )\n\
+          \                continue\n\n            processed_docs += 1\n         \
+          \   file_name = conv_res.input.file.stem\n            document = conv_res.document\n\
+          \n            if document is None:\n                _log.warning(f\"Document\
+          \ conversion failed for {file_name}\")\n                continue\n\n   \
+          \         chunks_with_embedding = []\n            for chunk in chunker.chunk(dl_doc=document):\n\
           \                raw_chunk = chunker.contextualize(chunk)\n            \
           \    embedding = embed_text(raw_chunk, embedding_model)\n\n            \
           \    chunk_id = str(uuid.uuid4())  # Generate a unique ID for the chunk\n\
@@ -530,8 +530,8 @@ deploymentSpec:
           \                      vector_db_id=vector_db_id, chunks=chunks_with_embedding\n\
           \                    )\n                except Exception as e:\n       \
           \             _log.error(f\"Failed to insert embeddings into vector database:\
-          \ {e}\")\n\n                _log.info(f\"Processed {processed_docs} documents\
-          \ successfully.\")\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
+          \ {e}\")\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
+          )\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
           \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
           \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
@@ -624,14 +624,15 @@ deploymentSpec:
           \ *\n\ndef register_vector_db(\n    service_url: str,\n    vector_db_id:\
           \ str,\n    embed_model_id: str,\n) -> None:\n    from llama_stack_client\
           \ import LlamaStackClient\n\n    client = LlamaStackClient(base_url=service_url)\n\
-          \n    models = client.models.list()\n    matching_model = next((m for m\
-          \ in models if m.identifier == embed_model_id), None)\n\n    if not matching_model:\n\
-          \        raise ValueError(\n            f\"Model with ID '{embed_model_id}'\
-          \ not found on LlamaStack server.\"\n        )\n\n    if matching_model.model_type\
-          \ != \"embedding\":\n        raise ValueError(f\"Model '{embed_model_id}'\
-          \ is not an embedding model\")\n\n    embedding_dimension = matching_model.metadata[\"\
-          embedding_dimension\"]\n\n    # Register the vector DB\n    _ = client.vector_dbs.register(\n\
-          \        vector_db_id=vector_db_id,\n        embedding_model=embed_model_id,\n\
+          \n    models = client.models.list()\n    matching_model = next(\n      \
+          \  (m for m in models if m.provider_resource_id == embed_model_id), None\n\
+          \    )\n\n    if not matching_model:\n        raise ValueError(\n      \
+          \      f\"Model with ID '{embed_model_id}' not found on LlamaStack server.\"\
+          \n        )\n\n    if matching_model.model_type != \"embedding\":\n    \
+          \    raise ValueError(f\"Model '{embed_model_id}' is not an embedding model\"\
+          )\n\n    embedding_dimension = matching_model.metadata[\"embedding_dimension\"\
+          ]\n\n    # Register the vector DB\n    _ = client.vector_dbs.register(\n\
+          \        vector_db_id=vector_db_id,\n        embedding_model=matching_model.identifier,\n\
           \        embedding_dimension=embedding_dimension,\n        provider_id=\"\
           milvus\",\n    )\n    print(\n        f\"Registered vector DB '{vector_db_id}'\
           \ with embedding model '{embed_model_id}'.\"\n    )\n\n"
@@ -754,7 +755,7 @@ root:
         parameterType: STRING
       use_gpu:
         defaultValue: true
-        description: Enable GPU in the docling workers
+        description: boolean to enable/disable gpu in the docling workers
         isOptional: true
         parameterType: BOOLEAN
       vector_db_id:
@@ -769,7 +770,7 @@ platforms:
   kubernetes:
     deploymentSpec:
       executors:
-        exec-docling-convert-images:
+        exec-docling-convert-and-ingest-images:
           nodeSelector:
             nodeSelectorJson:
               runtimeValue:

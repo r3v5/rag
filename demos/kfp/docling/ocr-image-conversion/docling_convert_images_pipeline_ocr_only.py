@@ -1,8 +1,8 @@
 # ruff: noqa: PLC0415,UP007,UP035,UP006,E712
 # SPDX-License-Identifier: Apache-2.0
-from typing import List, Dict, Any, Iterator, Optional
+from typing import List, Dict, Iterator, Optional, Tuple
 import logging
-import pathlib
+
 
 from kfp import compiler, dsl
 from kfp.kubernetes import add_node_selector_json, add_toleration_json
@@ -31,7 +31,9 @@ def register_vector_db(
     client = LlamaStackClient(base_url=service_url)
 
     models = client.models.list()
-    matching_model = next((m for m in models if m.identifier == embed_model_id), None)
+    matching_model = next(
+        (m for m in models if m.provider_resource_id == embed_model_id), None
+    )
 
     if not matching_model:
         raise ValueError(
@@ -46,7 +48,7 @@ def register_vector_db(
     # Register the vector DB
     _ = client.vector_dbs.register(
         vector_db_id=vector_db_id,
-        embedding_model=embed_model_id,
+        embedding_model=matching_model.identifier,
         embedding_dimension=embedding_dimension,
         provider_id="milvus",
     )
@@ -101,6 +103,9 @@ def create_image_splits(
         "*.png",
         "*.jpg",
         "*.jpeg",
+        "*.tiff",
+        "*.bmp",
+        "*.webp",
     ]
 
     for ext in image_extensions:
@@ -128,7 +133,7 @@ def create_image_splits(
         "Pillow",
     ],
 )
-def docling_convert_images(
+def docling_convert_and_ingest_images(
     input_path: dsl.InputPath("input-images"),
     image_split: List[str],
     output_path: dsl.OutputPath("output-md"),
@@ -141,7 +146,6 @@ def docling_convert_images(
     import json
     import uuid
     import logging
-    from typing import List, Any
 
     from docling.datamodel.base_models import InputFormat, ConversionStatus
     from docling.datamodel.document import ConversionResult
@@ -156,7 +160,7 @@ def docling_convert_images(
     # ---- Helper functions ----
     def setup_chunker_and_embedder(
         embed_model_id: str, max_tokens: int
-    ) -> tuple[SentenceTransformer, HybridChunker]:
+    ) -> Tuple[SentenceTransformer, HybridChunker]:
         """Setup embedding model and chunker for text processing"""
         tokenizer = AutoTokenizer.from_pretrained(embed_model_id)
         embedding_model = SentenceTransformer(embed_model_id)
@@ -173,6 +177,10 @@ def docling_convert_images(
         conv_results: Iterator[ConversionResult], client: LlamaStackClient
     ) -> None:
         processed_docs = 0
+        embedding_model, chunker = setup_chunker_and_embedder(
+            embed_model_id, max_tokens
+        )
+
         for conv_res in conv_results:
             if conv_res.status != ConversionStatus.SUCCESS:
                 _log.warning(
@@ -187,10 +195,6 @@ def docling_convert_images(
             if document is None:
                 _log.warning(f"Document conversion failed for {file_name}")
                 continue
-
-            embedding_model, chunker = setup_chunker_and_embedder(
-                embed_model_id, max_tokens
-            )
 
             chunks_with_embedding = []
             for chunk in chunker.chunk(dl_doc=document):
@@ -227,7 +231,7 @@ def docling_convert_images(
                 except Exception as e:
                     _log.error(f"Failed to insert embeddings into vector database: {e}")
 
-                _log.info(f"Processed {processed_docs} documents successfully.")
+        _log.info(f"Processed {processed_docs} documents successfully.")
 
     # ---- Main logic ----
     input_path = pathlib.Path(input_path)
@@ -284,6 +288,7 @@ def docling_convert_pipeline(
     :param service_url: URL of the Milvus service
     :param embed_model_id: Model ID for embedding generation
     :param max_tokens: Maximum number of tokens per chunk
+    :param use_gpu: boolean to enable/disable gpu in the docling workers
     :return:
     """
 
@@ -307,7 +312,7 @@ def docling_convert_pipeline(
 
     with dsl.ParallelFor(image_splits.output) as image_split:
         with dsl.If(use_gpu == True):
-            convert_task = docling_convert_images(
+            convert_task = docling_convert_and_ingest_images(
                 input_path=import_task.output,
                 image_split=image_split,
                 embed_model_id=embed_model_id,
@@ -334,7 +339,7 @@ def docling_convert_pipeline(
             )
             add_node_selector_json(convert_task, {})
         with dsl.Else():
-            convert_task = docling_convert_images(
+            convert_task = docling_convert_and_ingest_images(
                 input_path=import_task.output,
                 image_split=image_split,
                 embed_model_id=embed_model_id,
