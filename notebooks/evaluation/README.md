@@ -10,36 +10,32 @@ The primary goal is to offer a reproducible methodology for comparing RAG system
 
 ## Table of Contents
 
-  - [Project Structure](#project-structure)
-  - [Getting Started](#getting-started)
-  - [Summary of Findings](#summary-of-findings)
-  - [Detailed Results](#detailed-results)
-  - [Key Limitations of this Study](#key-limitations-of-this-study)
-  - [Further Observations](#further-observations)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Summary of Findings](#summary-of-findings)
+- [Detailed Results](#detailed-results)
+- [Key Limitations of this Study](#key-limitations-of-this-study)
+- [Further Observations](#further-observations)
 
 ## Project Structure
 
 This directory includes the following components:
 
-  * **Jupyter Notebooks**:
+* **Jupyter Notebooks**:
+    * [`make-sample-questions.ipynb`](./make-sample-questions.ipynb): Generates a dataset of sample questions and reference answers from a source document.
+    * [`evaluate-using-sample-questions-lls-vs-li.ipynb`](./evaluate-using-sample-questions-lls-vs-li.ipynb): Runs Llama Stack and LlamaIndex RAG pipelines on the generated questions, evaluates their responses using the Ragas framework, and performs statistical significance testing with SciPy.
 
-      * [`make-sample-questions.ipynb`](./make-sample-questions.ipynb): Generates a dataset of sample questions and reference answers from a source document.
-      * [`evaluate-using-sample-questions-lls-vs-li.ipynb`](/evaluate-using-sample-questions-lls-vs-li.ipynb): Runs Llama Stack and LlamaIndex RAG pipelines on the generated questions, evaluates their responses using the Ragas framework, and performs statistical significance testing with SciPy.
+* **Supporting Code**:
+    * [`evaluation_utilities.py`](./evaluation_utilities.py): Utility functions and helper code for the evaluation notebooks.
 
-  * **Supporting Code**:
+* **Sample Data**:
+    * [`qna-ibm-2024-2250-2239.json`](./qna-ibm-2024-2250-2239.json): A Q\&A dataset generated from the IBM 2024 annual report without special instructions.
+    * [`qna-ibm-2024b-2220-2196.json`](./qna-ibm-2024b-2220-2196.json): A Q\&A dataset generated from the same report, but using the default special instructions in the notebook to produce more diverse questions.
+    * **Note on filenames**: The numbers in the JSON filenames (`{configured_questions}-{final_question_count}`) may not perfectly match the final counts in the file due to de-duplication steps.
 
-      * [`evaluation_utilities.py`](./evaluation_utilities.py): Utility functions and helper code for the evaluation notebooks.
-
-  * **Sample Data**:
-
-      * [`qna-ibm-2024-2250-2239.json`](./qna-ibm-2024-2250-2239.json): A Q\&A dataset generated from the IBM 2024 annual report without special instructions.
-      * [`qna-ibm-2024b-2220-2196.json`](./qna-ibm-2024b-2220-2196.json): A Q\&A dataset generated from the same report, but using the default special instructions in the notebook to produce more diverse questions.
-      * **Note on filenames**: The numbers in the JSON filenames (`{configured_questions}-{final_question_count}`) may not perfectly match the final counts in the file due to de-duplication steps.
-
-  * **Configuration**:
-
-      * [`requirements.txt`](./requirements.txt): A list of Python libraries required to run the notebooks.
-      * [`run.yaml`](./run.yaml): A configuration file for the Llama Stack server.
+* **Configuration**:
+    * [`requirements.txt`](./requirements.txt): A list of Python libraries required to run the notebooks.
+    * [`run.yaml`](./run.yaml): A configuration file for the Llama Stack server.
 
 ## Getting Started
 
