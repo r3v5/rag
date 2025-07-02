@@ -131,6 +131,7 @@ def create_image_splits(
         "fire",
         "requests",
         "Pillow",
+        "huggingface_hub",
     ],
 )
 def docling_convert_and_ingest_images(
@@ -146,6 +147,7 @@ def docling_convert_and_ingest_images(
     import json
     import uuid
     import logging
+    import os
 
     from docling.datamodel.base_models import InputFormat, ConversionStatus
     from docling.datamodel.document import ConversionResult
@@ -240,14 +242,42 @@ def docling_convert_and_ingest_images(
 
     input_images = [input_path / name for name in image_split]
 
-    # Configure Docling for image processing with OCR
+    # Configure Docling EasyOcrOptions for image processing with OCR
     from docling.datamodel.pipeline_options import EasyOcrOptions
 
+    # Configure Docling RapidOcrOptions for image processing with OCR
+    from docling.datamodel.pipeline_options import RapidOcrOptions
+    from huggingface_hub import snapshot_download
+
+    # Download RappidOCR models from HuggingFace
+    print("Downloading RapidOCR models")
+    download_path = snapshot_download(repo_id="SWHL/RapidOCR")
+
+    # Setup RapidOcrOptions for english detection
+    det_model_path = os.path.join(
+        download_path, "PP-OCRv4", "en_PP-OCRv3_det_infer.onnx"
+    )
+    rec_model_path = os.path.join(
+        download_path, "PP-OCRv4", "ch_PP-OCRv4_rec_server_infer.onnx"
+    )
+    cls_model_path = os.path.join(
+        download_path, "PP-OCRv3", "ch_ppocr_mobile_v2.0_cls_train.onnx"
+    )
+
     # Enable OCR for text extraction from images
+    # image_format_options = ImageFormatOption(
+    #     do_ocr=True,
+    #     ocr_options=EasyOcrOptions(
+    #         lang=["en"],  # Language for OCR
+    #     ),
+    # )
+
     image_format_options = ImageFormatOption(
         do_ocr=True,
-        ocr_options=EasyOcrOptions(
-            lang=["en"],  # Language for OCR
+        ocr_options=RapidOcrOptions(
+            det_model_path=det_model_path,
+            rec_model_path=rec_model_path,
+            cls_model_path=cls_model_path,
         ),
     )
 
@@ -270,7 +300,7 @@ def docling_convert_pipeline(
     base_url: str = "https://raw.githubusercontent.com/r3v5/ollama-rag-agent/main/testing_data",
     image_filenames: str = "key-market-usecases.png, diagram.png",
     num_workers: int = 1,
-    vector_db_id: str = "my_demo_image_ocr_vector_id",
+    vector_db_id: str = "demo_db",
     service_url: str = "http://lsd-llama-milvus-service:8321",
     embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
     max_tokens: int = 512,

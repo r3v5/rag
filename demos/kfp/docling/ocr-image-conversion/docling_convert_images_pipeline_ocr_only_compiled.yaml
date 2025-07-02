@@ -9,7 +9,7 @@
 #    num_workers: int [Default: 1.0]
 #    service_url: str [Default: 'http://lsd-llama-milvus-service:8321']
 #    use_gpu: bool [Default: True]
-#    vector_db_id: str [Default: 'my_demo_image_ocr_vector_id']
+#    vector_db_id: str [Default: 'demo_db']
 components:
   comp-condition-3:
     dag:
@@ -358,7 +358,7 @@ deploymentSpec:
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'docling' 'transformers'\
           \ 'sentence-transformers' 'llama-stack' 'llama-stack-client' 'pymilvus'\
-          \ 'fire' 'requests' 'Pillow' && \"$0\" \"$@\"\n"
+          \ 'fire' 'requests' 'Pillow' 'huggingface_hub' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -374,7 +374,7 @@ deploymentSpec:
           input-images\"),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"\
           output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
           \ str,\n    vector_db_id: str,\n) -> None:\n    import pathlib\n    import\
-          \ json\n    import uuid\n    import logging\n\n    from docling.datamodel.base_models\
+          \ json\n    import uuid\n    import logging\n    import os\n\n    from docling.datamodel.base_models\
           \ import InputFormat, ConversionStatus\n    from docling.datamodel.document\
           \ import ConversionResult\n    from docling.document_converter import DocumentConverter,\
           \ ImageFormatOption\n    from transformers import AutoTokenizer\n    from\
@@ -426,15 +426,29 @@ deploymentSpec:
           )\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
           \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
-          \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
-          \ import EasyOcrOptions\n\n    # Enable OCR for text extraction from images\n\
-          \    image_format_options = ImageFormatOption(\n        do_ocr=True,\n \
-          \       ocr_options=EasyOcrOptions(\n            lang=[\"en\"],  # Language\
-          \ for OCR\n        ),\n    )\n\n    doc_converter = DocumentConverter(\n\
-          \        format_options={InputFormat.IMAGE: image_format_options}\n    )\n\
-          \n    conv_results = doc_converter.convert_all(\n        input_images,\n\
-          \        raises_on_error=True,\n    )\n\n    client = LlamaStackClient(base_url=service_url)\n\
-          \n    process_and_insert_embeddings(conv_results, client)\n\n"
+          \n    # Configure Docling EasyOcrOptions for image processing with OCR\n\
+          \    from docling.datamodel.pipeline_options import EasyOcrOptions\n\n \
+          \   # Configure Docling RapidOcrOptions for image processing with OCR\n\
+          \    from docling.datamodel.pipeline_options import RapidOcrOptions\n  \
+          \  from huggingface_hub import snapshot_download\n\n    # Download RappidOCR\
+          \ models from HuggingFace\n    print(\"Downloading RapidOCR models\")\n\
+          \    download_path = snapshot_download(repo_id=\"SWHL/RapidOCR\")\n\n  \
+          \  # Setup RapidOcrOptions for english detection\n    det_model_path = os.path.join(\n\
+          \        download_path, \"PP-OCRv4\", \"en_PP-OCRv3_det_infer.onnx\"\n \
+          \   )\n    rec_model_path = os.path.join(\n        download_path, \"PP-OCRv4\"\
+          , \"ch_PP-OCRv4_rec_server_infer.onnx\"\n    )\n    cls_model_path = os.path.join(\n\
+          \        download_path, \"PP-OCRv3\", \"ch_ppocr_mobile_v2.0_cls_train.onnx\"\
+          \n    )\n\n    # Enable OCR for text extraction from images\n    # image_format_options\
+          \ = ImageFormatOption(\n    #     do_ocr=True,\n    #     ocr_options=EasyOcrOptions(\n\
+          \    #         lang=[\"en\"],  # Language for OCR\n    #     ),\n    # )\n\
+          \n    image_format_options = ImageFormatOption(\n        do_ocr=True,\n\
+          \        ocr_options=RapidOcrOptions(\n            det_model_path=det_model_path,\n\
+          \            rec_model_path=rec_model_path,\n            cls_model_path=cls_model_path,\n\
+          \        ),\n    )\n\n    doc_converter = DocumentConverter(\n        format_options={InputFormat.IMAGE:\
+          \ image_format_options}\n    )\n\n    conv_results = doc_converter.convert_all(\n\
+          \        input_images,\n        raises_on_error=True,\n    )\n\n    client\
+          \ = LlamaStackClient(base_url=service_url)\n\n    process_and_insert_embeddings(conv_results,\
+          \ client)\n\n"
         image: quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py311-ubi9@sha256:4706be608af3f33c88700ef6ef6a99e716fc95fc7d2e879502e81c0022fd840e
         resources:
           accelerator:
@@ -466,7 +480,7 @@ deploymentSpec:
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'docling' 'transformers'\
           \ 'sentence-transformers' 'llama-stack' 'llama-stack-client' 'pymilvus'\
-          \ 'fire' 'requests' 'Pillow' && \"$0\" \"$@\"\n"
+          \ 'fire' 'requests' 'Pillow' 'huggingface_hub' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -482,7 +496,7 @@ deploymentSpec:
           input-images\"),\n    image_split: List[str],\n    output_path: dsl.OutputPath(\"\
           output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
           \ str,\n    vector_db_id: str,\n) -> None:\n    import pathlib\n    import\
-          \ json\n    import uuid\n    import logging\n\n    from docling.datamodel.base_models\
+          \ json\n    import uuid\n    import logging\n    import os\n\n    from docling.datamodel.base_models\
           \ import InputFormat, ConversionStatus\n    from docling.datamodel.document\
           \ import ConversionResult\n    from docling.document_converter import DocumentConverter,\
           \ ImageFormatOption\n    from transformers import AutoTokenizer\n    from\
@@ -534,15 +548,29 @@ deploymentSpec:
           )\n\n    # ---- Main logic ----\n    input_path = pathlib.Path(input_path)\n\
           \    output_path = pathlib.Path(output_path)\n    output_path.mkdir(parents=True,\
           \ exist_ok=True)\n\n    input_images = [input_path / name for name in image_split]\n\
-          \n    # Configure Docling for image processing with OCR\n    from docling.datamodel.pipeline_options\
-          \ import EasyOcrOptions\n\n    # Enable OCR for text extraction from images\n\
-          \    image_format_options = ImageFormatOption(\n        do_ocr=True,\n \
-          \       ocr_options=EasyOcrOptions(\n            lang=[\"en\"],  # Language\
-          \ for OCR\n        ),\n    )\n\n    doc_converter = DocumentConverter(\n\
-          \        format_options={InputFormat.IMAGE: image_format_options}\n    )\n\
-          \n    conv_results = doc_converter.convert_all(\n        input_images,\n\
-          \        raises_on_error=True,\n    )\n\n    client = LlamaStackClient(base_url=service_url)\n\
-          \n    process_and_insert_embeddings(conv_results, client)\n\n"
+          \n    # Configure Docling EasyOcrOptions for image processing with OCR\n\
+          \    from docling.datamodel.pipeline_options import EasyOcrOptions\n\n \
+          \   # Configure Docling RapidOcrOptions for image processing with OCR\n\
+          \    from docling.datamodel.pipeline_options import RapidOcrOptions\n  \
+          \  from huggingface_hub import snapshot_download\n\n    # Download RappidOCR\
+          \ models from HuggingFace\n    print(\"Downloading RapidOCR models\")\n\
+          \    download_path = snapshot_download(repo_id=\"SWHL/RapidOCR\")\n\n  \
+          \  # Setup RapidOcrOptions for english detection\n    det_model_path = os.path.join(\n\
+          \        download_path, \"PP-OCRv4\", \"en_PP-OCRv3_det_infer.onnx\"\n \
+          \   )\n    rec_model_path = os.path.join(\n        download_path, \"PP-OCRv4\"\
+          , \"ch_PP-OCRv4_rec_server_infer.onnx\"\n    )\n    cls_model_path = os.path.join(\n\
+          \        download_path, \"PP-OCRv3\", \"ch_ppocr_mobile_v2.0_cls_train.onnx\"\
+          \n    )\n\n    # Enable OCR for text extraction from images\n    # image_format_options\
+          \ = ImageFormatOption(\n    #     do_ocr=True,\n    #     ocr_options=EasyOcrOptions(\n\
+          \    #         lang=[\"en\"],  # Language for OCR\n    #     ),\n    # )\n\
+          \n    image_format_options = ImageFormatOption(\n        do_ocr=True,\n\
+          \        ocr_options=RapidOcrOptions(\n            det_model_path=det_model_path,\n\
+          \            rec_model_path=rec_model_path,\n            cls_model_path=cls_model_path,\n\
+          \        ),\n    )\n\n    doc_converter = DocumentConverter(\n        format_options={InputFormat.IMAGE:\
+          \ image_format_options}\n    )\n\n    conv_results = doc_converter.convert_all(\n\
+          \        input_images,\n        raises_on_error=True,\n    )\n\n    client\
+          \ = LlamaStackClient(base_url=service_url)\n\n    process_and_insert_embeddings(conv_results,\
+          \ client)\n\n"
         image: quay.io/modh/odh-pipeline-runtime-pytorch-cuda-py311-ubi9@sha256:4706be608af3f33c88700ef6ef6a99e716fc95fc7d2e879502e81c0022fd840e
         resources:
           cpuLimit: 4.0
@@ -759,7 +787,7 @@ root:
         isOptional: true
         parameterType: BOOLEAN
       vector_db_id:
-        defaultValue: my_demo_image_ocr_vector_id
+        defaultValue: demo_db
         description: ID of the vector database to store embeddings
         isOptional: true
         parameterType: STRING
