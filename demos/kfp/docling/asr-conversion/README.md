@@ -6,9 +6,21 @@
 
   
 
+  
+
+  
+
 This document explains the **Kubeflow Docling ASR (Automatic Speech Recognition) Conversion Pipeline** - a Kubeflow pipeline that processes audio files using Automatic Speech Recognition (ASR) with Docling to extract transcripts and generate embeddings for Retrieval-Augmented Generation (RAG) applications. Pipeline can be run on GPU node and on CPU node without GPU.
 
+  
+
+  
+
 ---
+
+  
+
+  
 
   
 
@@ -24,7 +36,15 @@ This document explains the **Kubeflow Docling ASR (Automatic Speech Recognition)
 
   
 
+  
+
+  
+
 The pipeline transforms audio files into searchable vector embeddings through the following stages:
+
+  
+
+  
 
   
 
@@ -38,7 +58,15 @@ The pipeline transforms audio files into searchable vector embeddings through th
 
   
 
+  
+
+  
+
 graph TD
+
+  
+
+  
 
   
 
@@ -50,7 +78,15 @@ A[Register Vector DB] --> B[Import audio files]
 
   
 
+  
+
+  
+
 B --> C[Create audio splits]
+
+  
+
+  
 
   
 
@@ -62,7 +98,15 @@ C --> D[Install FFmpeg Dependency]
 
   
 
+  
+
+  
+
 D --> E[Conversion using Docling ASR via Whisper]
+
+  
+
+  
 
   
 
@@ -74,7 +118,15 @@ E --> F[Text Chunking]
 
   
 
+  
+
+  
+
 F --> G[Generate Embeddings]
+
+  
+
+  
 
   
 
@@ -86,13 +138,25 @@ G --> H[Store in Vector Database]
 
   
 
+  
+
+  
+
 H --> I[Ready for RAG Queries]
 
   
 
   
 
+  
+
+  
+
 ```
+
+  
+
+  
 
   
 
@@ -110,7 +174,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 ### 1. **Vector Database Registration** (`register_vector_db`)
+
+  
+
+  
 
   
 
@@ -126,7 +198,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 ### 2. **Audio Import** (`import_audio_files`)
+
+  
+
+  
 
   
 
@@ -142,7 +222,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 ### 3. **Audio Splitting** (`create_audio_splits`)
+
+  
+
+  
 
   
 
@@ -158,7 +246,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 ### 4. **ASR Conversion and Embedding Generation** (`docling_convert_and_ingest_audio`)
+
+  
+
+  
 
   
 
@@ -176,7 +272,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 ## Supported Audio Formats
+
+  
+
+  
 
   
 
@@ -188,7 +292,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 -  `.m4a`
+
+  
+
+  
 
   
 
@@ -200,7 +312,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 -  `.flac`
+
+  
+
+  
 
   
 
@@ -212,7 +332,33 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 -  `.aac`
+
+  
+
+In fact, Whisper model works exceptionally well with **WAV files**. It's the ideal format to use.
+
+  
+  
+  
+
+## Why WAV is the Best Choice
+
+  
+
+-  **Uncompressed Data**: WAV files contain raw, uncompressed audio data (PCM), which is exactly what the Whisper model needs to analyze the sound waves and perform transcription.
+
+-  **Standardization**: You can easily save a WAV file with the precise specifications that Whisper was trained on: **16kHz sample rate** and a **single mono channel**. This consistency leads to the highest accuracy.
+
+-  **No Decoding Needed**: When the model receives a properly formatted WAV file, it can process the audio directly without needing any external tools like FFmpeg to decode it first.
+
+  
+
+In short, providing Whisper with a 16kHz mono WAV file is giving it the exact type of data it was designed to read, which ensures the most reliable and accurate results.
 
   
 
@@ -228,7 +374,15 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 1.  **User Query** → Embedding Model → Query Vector
+
+  
+
+  
 
   
 
@@ -240,13 +394,25 @@ H --> I[Ready for RAG Queries]
 
   
 
+  
+
+  
+
 3.  **Context Assembly** → Markdown Transcript Content + Timestamps
 
   
 
   
 
+  
+
+  
+
 4.  **LLM Generation** → Final Answer with Context from Audio
+
+  
+
+  
 
   
 
@@ -268,7 +434,15 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 
   
 
+  
+
+  
+
 ## 🚀 Getting Started
+
+  
+
+  
 
   
 
@@ -284,19 +458,39 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 
   
 
+  
+
+  
+
 - Data Science Project in OpenShift AI with workbench and pipeline server
 
   
 
-	- [Data Science Project in OpenShift AI with a configured Workbench](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/getting_started)
+  
 
   
 
-	- [Configuring a pipeline server](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.20/html/working_with_data_science_pipelines/managing-data-science-pipelines_ds-pipelines#configuring-a-pipeline-server_ds-pipelines)
+- [Data Science Project in OpenShift AI with a configured Workbench](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/getting_started)
+
+  
+
+  
+
+  
+
+- [Configuring a pipeline server](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.20/html/working_with_data_science_pipelines/managing-data-science-pipelines_ds-pipelines#configuring-a-pipeline-server_ds-pipelines)
+
+  
+
+  
 
   
 
 - A LlamaStack service with a vector database backend deployed (follow our [official deployment documentation](https://github.com/opendatahub-io/rag/blob/main/DEPLOYMENT.md))
+
+  
+
+  
 
   
 
@@ -308,34 +502,59 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 
   
 
+  
+
+  
+
 - GPU-enabled nodes are highly recommended for faster processing.
+
+  
+
+  
 
 - You still can use CPU nodes only but it will take longer time.
 
   
+
+  
+
 ### Creating the Pipeline for running on GPU node
+
+  
+
 ```
 # Install dependencies for pipeline
 cd demos/kfp/docling/asr-conversion
 pip3 install -r requirements.txt
 
-# Compile the Kubeflow pipeline for running with help of GPU
+
+# Compile the Kubeflow pipeline for running with help of GPU or use existing pipeline
 cd demos/kfp/docling/asr-conversion/conversion-on-gpu
 python3 docling_asr_convert_pipeline.py
 ```
+
   
 
+  
 
 ### Creating the Pipeline for running on CPU only
+
+  
+
 ```
 # Install dependencies for pipeline
 cd demos/kfp/docling/asr-conversion
 pip3 install -r requirements.txt
 
-# Compile the Kubeflow pipeline for running on CPU only
+
+# Compile the Kubeflow pipeline for running on CPU only or use existing pipeline
 cd demos/kfp/docling/asr-conversion/conversion-on-cpu
 python3 docling_asr_convert_pipeline.py
 ```
+
+  
+
+  
 
   
 
@@ -345,9 +564,21 @@ python3 docling_asr_convert_pipeline.py
 
   
 
+  
+
+  
+
 - Import the compiled YAML to in Pipeline server in your Data Science project in OpenShift AI
 
-    - [Running a data science pipeline generated from Python code](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/openshift_ai_tutorial_-_fraud_detection_example/implementing-pipelines#running-a-pipeline-generated-from-python-code)
+  
+
+  
+
+- [Running a data science pipeline generated from Python code](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/openshift_ai_tutorial_-_fraud_detection_example/implementing-pipelines#running-a-pipeline-generated-from-python-code)
+
+  
+
+  
 
   
 
@@ -356,6 +587,10 @@ python3 docling_asr_convert_pipeline.py
   
 
 - Configure the pipeline parameters as needed
+
+  
+
+  
 
   
 
@@ -375,7 +610,15 @@ python3 docling_asr_convert_pipeline.py
 
   
 
+  
+
+  
+
 -  `base_url`: URL where audio files are hosted
+
+  
+
+  
 
   
 
@@ -391,7 +634,15 @@ python3 docling_asr_convert_pipeline.py
 
   
 
+  
+
+  
+
 -  `num_workers`: Number of parallel workers (default: 1)
+
+  
+
+  
 
   
 
@@ -407,7 +658,15 @@ python3 docling_asr_convert_pipeline.py
 
   
 
+  
+
+  
+
 -  `service_url`: URL of the LlamaStack service
+
+  
+
+  
 
   
 
@@ -423,7 +682,15 @@ python3 docling_asr_convert_pipeline.py
 
   
 
+  
+
+  
+
 -  `max_tokens`: Maximum tokens per chunk (default: 512)
+
+  
+
+  
 
   
 
@@ -438,18 +705,44 @@ python3 docling_asr_convert_pipeline.py
   
 
   
+
+  
+
 ### Query RAG Agent in your Workbench within a Data Science project on OpenShift AI
+
+  
+
 1. Open your Workbench
+
+  
+
 2. Clone the rag repo and use main branch
-	- Use this link `https://github.com/opendatahub-io/rag.git` for cloning the repo
-	- [Collaborating on Jupyter notebooks by using Git](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/working_with_connected_applications/using_basic_workbenches#collaborating-on-jupyter-notebooks-by-using-git_connected-apps)
-			         
+
+  
+
+- Use this link `https://github.com/opendatahub-io/rag.git` for cloning the repo
+
+  
+
+- [Collaborating on Jupyter notebooks by using Git](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/working_with_connected_applications/using_basic_workbenches#collaborating-on-jupyter-notebooks-by-using-git_connected-apps)
+
+  
+
 3. Install dependencies for Jupyter Notebook with RAG Agent
+
+  
+
 ```
 cd demos/kfp/docling/asr-conversion/rag-agent
-pip3 install -r requirements.txt 
+pip3 install -r requirements.txt
 ```
+
+  
+
 4. Follow the instructions in the corresponding RAG Jupyter Notebook `asr_rag_agent.ipynb` to query the content ingested by the pipeline.
+
+  
+
 ```
 cd demos/kfp/docling/asr-conversion/rag-agent
 ```
