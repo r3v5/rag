@@ -1,6 +1,6 @@
 # ruff: noqa: PLC0415,UP007,UP035,UP006,E712
 # SPDX-License-Identifier: Apache-2.0
-from typing import Iterator, List
+from typing import Iterator, List, Tuple, Dict
 import logging
 
 from kfp import compiler, dsl
@@ -139,7 +139,6 @@ def docling_convert_and_ingest_audio(
     import pathlib
     import subprocess
     import os
-    from typing import Tuple
 
     from docling.datamodel.pipeline_options_asr_model import (
         InlineAsrNativeWhisperOptions,
@@ -151,6 +150,7 @@ def docling_convert_and_ingest_audio(
     from docling.datamodel.pipeline_options import AsrPipelineOptions
     from docling.document_converter import AudioFormatOption, DocumentConverter
     from docling.pipeline.asr_pipeline import AsrPipeline
+    from docling_core.types.doc.document import DoclingDocument
 
     from transformers import AutoTokenizer
     from sentence_transformers import SentenceTransformer
@@ -237,10 +237,71 @@ def docling_convert_and_ingest_audio(
             print(f"Failed to install ffmpeg: {e}")
             raise RuntimeError(
                 "ffmpeg installation failed. Audio processing requires ffmpeg."
-            )
+            ) from e
 
-    # Install ffmpeg before proceeding
-    install_ffmpeg()
+    # Convert audio files to WAV format that whisper can process
+    def convert_audio_to_wav(
+        input_audio_files: List[pathlib.Path],
+    ) -> Tuple[List[pathlib.Path], List[pathlib.Path]]:
+        processed_audio_files = []
+        temp_files_to_cleanup = []
+
+        for audio_file in input_audio_files:
+            if not audio_file.exists():
+                print(f"Skipping missing file: {audio_file}")
+                continue
+
+            # Check if file is already WAV
+            if audio_file.suffix.lower() == ".wav":
+                processed_audio_files.append(audio_file)
+                print(f"Using WAV file directly: {audio_file.name}")
+            else:
+                # Convert non-WAV files to WAV format using ffmpeg
+                print(f"Converting {audio_file.name} to WAV format...")
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(
+                    suffix=f"_{audio_file.stem}.wav", delete=False
+                ) as tmp:
+                    temp_wav = pathlib.Path(tmp.name)
+
+                try:
+                    # Use ffmpeg to convert to WAV format
+                    subprocess.run(
+                        [
+                            "ffmpeg",
+                            "-i",
+                            str(audio_file),
+                            "-ar",
+                            "16000",  # 16kHz sample rate (good for whisper)
+                            "-ac",
+                            "1",  # mono channel
+                            "-c:a",
+                            "pcm_s16le",  # 16-bit PCM
+                            "-y",  # overwrite output file
+                            str(temp_wav),
+                        ],
+                        check=True,
+                        capture_output=True,
+                    )
+
+                    processed_audio_files.append(temp_wav)
+                    temp_files_to_cleanup.append(temp_wav)
+                    print(f"Successfully converted {audio_file.name} to WAV format")
+
+                except subprocess.CalledProcessError as e:
+                    print(f"ffmpeg conversion failed for {audio_file.name}: {e}")
+                    if e.stderr:
+                        print(f"stderr: {e.stderr.decode()}")
+                    continue
+        return (processed_audio_files, temp_files_to_cleanup)
+
+    # Clean up temporary files
+    def cleanup_temp_files(temp_files_to_cleanup: List[pathlib.Path]) -> None:
+        for temp_file in temp_files_to_cleanup:
+            if temp_file.exists():
+                temp_file.unlink()
+                print(f"Cleaned up temporary file: {temp_file.name}")
 
     # Return a Docling DocumentConverter configured for ASR with whisper_turbo model.
     def get_asr_converter() -> DocumentConverter:
@@ -251,7 +312,7 @@ def docling_convert_and_ingest_audio(
             verbose=True,
             timestamps=False,
             word_timestamps=False,
-            temperatue=0.0,
+            temperature=0.0,
             max_new_tokens=256,
             max_time_chunk=30.0,
         )
@@ -284,7 +345,59 @@ def docling_convert_and_ingest_audio(
     def embed_text(text: str, embedding_model: SentenceTransformer) -> list[float]:
         return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]
 
-    def process_and_insert_embeddings(
+    def create_chunks_with_embeddings(
+        converted_data: DoclingDocument,
+        embedding_model: SentenceTransformer,
+        chunker: HybridChunker,
+        file_name: str,
+    ) -> List[Dict]:
+
+        chunks_with_embeddings = []
+        for chunk in chunker.chunk(dl_doc=converted_data):
+            raw_chunk = chunker.contextualize(chunk)
+            embedding = embed_text(raw_chunk, embedding_model)
+            chunk_id = str(uuid.uuid4())
+            content_token_count = chunker.tokenizer.count_tokens(raw_chunk)
+
+            # Prepare metadata object
+            metadata_obj = {
+                "file_name": file_name,
+                "document_id": chunk_id,
+                "token_count": content_token_count,
+            }
+
+            metadata_str = json.dumps(metadata_obj)
+            metadata_token_count = chunker.tokenizer.count_tokens(metadata_str)
+            metadata_obj["metadata_token_count"] = metadata_token_count
+
+            # Create a new chunk with embedding
+            new_chunk_with_embedding = {
+                "content": raw_chunk,
+                "mime_type": "text/markdown",
+                "embedding": embedding,
+                "metadata": metadata_obj,
+            }
+
+            print(f"New embedding: {new_chunk_with_embedding}")
+
+            chunks_with_embeddings.append(new_chunk_with_embedding)
+
+        return chunks_with_embeddings
+
+    def insert_chunks_with_embeddings_to_vector_db(
+        chunks_with_embeddings: List[Dict],
+        vector_db_id: str,
+        client: LlamaStackClient,
+    ) -> None:
+        if chunks_with_embeddings:
+            try:
+                client.vector_io.insert(
+                    vector_db_id=vector_db_id, chunks=chunks_with_embeddings
+                )
+            except Exception as e:
+                _log.error(f"Failed to insert embeddings into vector database: {e}")
+
+    def process_conversion_results(
         conv_results: Iterator[ConversionResult], client: LlamaStackClient
     ) -> None:
         processed_docs = 0
@@ -306,45 +419,18 @@ def docling_convert_and_ingest_audio(
                 _log.warning(f"Document conversion failed for {file_name}")
                 continue
 
-            chunks_with_embedding = []
-            for chunk in chunker.chunk(dl_doc=document):
-                raw_chunk = chunker.contextualize(chunk)
-                embedding = embed_text(raw_chunk, embedding_model)
-                chunk_id = str(uuid.uuid4())
-                content_token_count = chunker.tokenizer.count_tokens(raw_chunk)
+            chunks_with_embeddings = create_chunks_with_embeddings(
+                document, embedding_model, chunker, file_name
+            )
 
-                # Prepare metadata object
-                metadata_obj = {
-                    "file_name": file_name,
-                    "document_id": chunk_id,
-                    "token_count": content_token_count,
-                }
-
-                metadata_str = json.dumps(metadata_obj)
-                metadata_token_count = chunker.tokenizer.count_tokens(metadata_str)
-                metadata_obj["metadata_token_count"] = metadata_token_count
-
-                # Create a new embedding object with the required fields
-                new_embedding = {
-                    "content": raw_chunk,
-                    "mime_type": "text/markdown",
-                    "embedding": embedding,
-                    "metadata": metadata_obj,
-                }
-
-                print(f"New embedding: {new_embedding}")
-
-                chunks_with_embedding.append(new_embedding)
-
-            if chunks_with_embedding:
-                try:
-                    client.vector_io.insert(
-                        vector_db_id=vector_db_id, chunks=chunks_with_embedding
-                    )
-                except Exception as e:
-                    _log.error(f"Failed to insert embeddings into vector database: {e}")
+            insert_chunks_with_embeddings_to_vector_db(
+                chunks_with_embeddings, vector_db_id, client
+            )
 
         _log.info(f"Processed {processed_docs} documents successfully.")
+
+    # Install ffmpeg before proceeding
+    install_ffmpeg()
 
     input_path = pathlib.Path(input_path)
     output_path = pathlib.Path(output_path)
@@ -352,55 +438,9 @@ def docling_convert_and_ingest_audio(
 
     input_audio_files = [input_path / name for name in audio_split]
 
-    # Preprocess non-WAV files to WAV format before convert_all
-    processed_audio_files = []
-    temp_files_to_cleanup = []
-
-    for audio_file in input_audio_files:
-        if not audio_file.exists():
-            print(f"Skipping missing file: {audio_file}")
-            continue
-
-        # Check if file is already WAV
-        if audio_file.suffix.lower() == ".wav":
-            processed_audio_files.append(audio_file)
-            print(f"Using WAV file directly: {audio_file.name}")
-        else:
-            # Convert non-WAV files to WAV format using ffmpeg
-            print(f"Converting {audio_file.name} to WAV format...")
-            import tempfile
-
-            temp_wav = pathlib.Path(tempfile.mktemp(suffix=f"_{audio_file.stem}.wav"))
-
-            try:
-                # Use ffmpeg to convert to WAV format
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-i",
-                        str(audio_file),
-                        "-ar",
-                        "16000",  # 16kHz sample rate (good for whisper)
-                        "-ac",
-                        "1",  # mono channel
-                        "-c:a",
-                        "pcm_s16le",  # 16-bit PCM
-                        "-y",  # overwrite output file
-                        str(temp_wav),
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-
-                processed_audio_files.append(temp_wav)
-                temp_files_to_cleanup.append(temp_wav)
-                print(f"Successfully converted {audio_file.name} to WAV format")
-
-            except subprocess.CalledProcessError as e:
-                print(f"ffmpeg conversion failed for {audio_file.name}: {e}")
-                if e.stderr:
-                    print(f"stderr: {e.stderr.decode()}")
-                continue
+    processed_audio_files, temp_files_to_cleanup = convert_audio_to_wav(
+        input_audio_files
+    )
 
     # Create Docling ASR converter
     docling_asr_converter = get_asr_converter()
@@ -413,13 +453,9 @@ def docling_convert_and_ingest_audio(
 
     client = LlamaStackClient(base_url=service_url)
 
-    process_and_insert_embeddings(conv_results, client)
+    process_conversion_results(conv_results, client)
 
-    # Clean up temporary files
-    for temp_file in temp_files_to_cleanup:
-        if temp_file.exists():
-            temp_file.unlink()
-            print(f"Cleaned up temporary file: {temp_file.name}")
+    cleanup_temp_files(temp_files_to_cleanup)
 
 
 @dsl.pipeline()
