@@ -435,39 +435,36 @@ deploymentSpec:
           \   continue\n\n            # Check if file is already WAV\n           \
           \ if audio_file.suffix.lower() == \".wav\":\n                processed_audio_files.append(audio_file)\n\
           \                print(f\"Using WAV file directly: {audio_file.name}\")\n\
-          \            else:\n                # Convert non-WAV files to WAV format\
-          \ using ffmpeg\n                print(f\"Converting {audio_file.name} to\
-          \ WAV format...\")\n                import tempfile\n\n                with\
-          \ tempfile.NamedTemporaryFile(\n                    suffix=f\"_{audio_file.stem}.wav\"\
-          , delete=False\n                ) as tmp:\n                    temp_wav\
-          \ = pathlib.Path(tmp.name)\n\n                try:\n                   \
-          \ # Use ffmpeg to convert to WAV format\n                    subprocess.run(\n\
-          \                        [\n                            \"ffmpeg\",\n  \
-          \                          \"-i\",\n                            str(audio_file),\n\
-          \                            \"-ar\",\n                            \"16000\"\
-          ,  # 16kHz sample rate (good for whisper)\n                            \"\
-          -ac\",\n                            \"1\",  # mono channel\n           \
-          \                 \"-c:a\",\n                            \"pcm_s16le\",\
-          \  # 16-bit PCM\n                            \"-y\",  # overwrite output\
-          \ file\n                            str(temp_wav),\n                   \
-          \     ],\n                        check=True,\n                        capture_output=True,\n\
-          \                    )\n\n                    processed_audio_files.append(temp_wav)\n\
-          \                    temp_files_to_cleanup.append(temp_wav)\n          \
-          \          print(f\"Successfully converted {audio_file.name} to WAV format\"\
-          )\n\n                except subprocess.CalledProcessError as e:\n      \
-          \              print(f\"ffmpeg conversion failed for {audio_file.name}:\
-          \ {e}\")\n                    if e.stderr:\n                        print(f\"\
-          stderr: {e.stderr.decode()}\")\n                    continue\n        return\
-          \ (processed_audio_files, temp_files_to_cleanup)\n\n    # Clean up temporary\
-          \ files\n    def cleanup_temp_files(temp_files_to_cleanup: List[pathlib.Path])\
-          \ -> None:\n        for temp_file in temp_files_to_cleanup:\n          \
-          \  if temp_file.exists():\n                temp_file.unlink()\n        \
-          \        print(f\"Cleaned up temporary file: {temp_file.name}\")\n\n   \
-          \ # Return a Docling DocumentConverter configured for ASR with whisper_turbo\
-          \ model.\n    def get_asr_converter() -> DocumentConverter:\n        \"\"\
-          \"Create a DocumentConverter configured for ASR with whisper_turbo model.\"\
-          \"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n     \
-          \       repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
+          \                continue\n\n            # Convert non-WAV files to WAV\
+          \ format using ffmpeg\n            print(f\"Converting {audio_file.name}\
+          \ to WAV format...\")\n            import tempfile\n\n            with tempfile.NamedTemporaryFile(\n\
+          \                suffix=f\"_{audio_file.stem}.wav\", delete=False\n    \
+          \        ) as tmp:\n                temp_wav = pathlib.Path(tmp.name)\n\n\
+          \            try:\n                # Use ffmpeg to convert to WAV format\n\
+          \                subprocess.run(\n                    [\n              \
+          \          \"ffmpeg\",\n                        \"-i\",\n              \
+          \          str(audio_file),\n                        \"-ar\",\n        \
+          \                \"16000\",  # 16kHz sample rate (good for whisper)\n  \
+          \                      \"-ac\",\n                        \"1\",  # mono\
+          \ channel\n                        \"-c:a\",\n                        \"\
+          pcm_s16le\",  # 16-bit PCM\n                        \"-y\",  # overwrite\
+          \ output file\n                        str(temp_wav),\n                \
+          \    ],\n                    check=True,\n                    capture_output=True,\n\
+          \                )\n\n                processed_audio_files.append(temp_wav)\n\
+          \                temp_files_to_cleanup.append(temp_wav)\n              \
+          \  print(f\"Successfully converted {audio_file.name} to WAV format\")\n\n\
+          \            except subprocess.CalledProcessError as e:\n              \
+          \  print(f\"ffmpeg conversion failed for {audio_file.name}: {e}\")\n   \
+          \             if e.stderr:\n                    print(f\"stderr: {e.stderr.decode()}\"\
+          )\n                continue\n        return (processed_audio_files, temp_files_to_cleanup)\n\
+          \n    # Clean up temporary files\n    def cleanup_temp_files(temp_files_to_cleanup:\
+          \ List[pathlib.Path]) -> None:\n        for temp_file in temp_files_to_cleanup:\n\
+          \            temp_file.unlink(missing_ok=True)\n            print(f\"Cleaned\
+          \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
+          \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
+          \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
+          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n\
+          \            repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
           \            verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
           \            temperature=0.0,\n            max_new_tokens=256,\n       \
           \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\
@@ -643,39 +640,36 @@ deploymentSpec:
           \   continue\n\n            # Check if file is already WAV\n           \
           \ if audio_file.suffix.lower() == \".wav\":\n                processed_audio_files.append(audio_file)\n\
           \                print(f\"Using WAV file directly: {audio_file.name}\")\n\
-          \            else:\n                # Convert non-WAV files to WAV format\
-          \ using ffmpeg\n                print(f\"Converting {audio_file.name} to\
-          \ WAV format...\")\n                import tempfile\n\n                with\
-          \ tempfile.NamedTemporaryFile(\n                    suffix=f\"_{audio_file.stem}.wav\"\
-          , delete=False\n                ) as tmp:\n                    temp_wav\
-          \ = pathlib.Path(tmp.name)\n\n                try:\n                   \
-          \ # Use ffmpeg to convert to WAV format\n                    subprocess.run(\n\
-          \                        [\n                            \"ffmpeg\",\n  \
-          \                          \"-i\",\n                            str(audio_file),\n\
-          \                            \"-ar\",\n                            \"16000\"\
-          ,  # 16kHz sample rate (good for whisper)\n                            \"\
-          -ac\",\n                            \"1\",  # mono channel\n           \
-          \                 \"-c:a\",\n                            \"pcm_s16le\",\
-          \  # 16-bit PCM\n                            \"-y\",  # overwrite output\
-          \ file\n                            str(temp_wav),\n                   \
-          \     ],\n                        check=True,\n                        capture_output=True,\n\
-          \                    )\n\n                    processed_audio_files.append(temp_wav)\n\
-          \                    temp_files_to_cleanup.append(temp_wav)\n          \
-          \          print(f\"Successfully converted {audio_file.name} to WAV format\"\
-          )\n\n                except subprocess.CalledProcessError as e:\n      \
-          \              print(f\"ffmpeg conversion failed for {audio_file.name}:\
-          \ {e}\")\n                    if e.stderr:\n                        print(f\"\
-          stderr: {e.stderr.decode()}\")\n                    continue\n        return\
-          \ (processed_audio_files, temp_files_to_cleanup)\n\n    # Clean up temporary\
-          \ files\n    def cleanup_temp_files(temp_files_to_cleanup: List[pathlib.Path])\
-          \ -> None:\n        for temp_file in temp_files_to_cleanup:\n          \
-          \  if temp_file.exists():\n                temp_file.unlink()\n        \
-          \        print(f\"Cleaned up temporary file: {temp_file.name}\")\n\n   \
-          \ # Return a Docling DocumentConverter configured for ASR with whisper_turbo\
-          \ model.\n    def get_asr_converter() -> DocumentConverter:\n        \"\"\
-          \"Create a DocumentConverter configured for ASR with whisper_turbo model.\"\
-          \"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n     \
-          \       repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
+          \                continue\n\n            # Convert non-WAV files to WAV\
+          \ format using ffmpeg\n            print(f\"Converting {audio_file.name}\
+          \ to WAV format...\")\n            import tempfile\n\n            with tempfile.NamedTemporaryFile(\n\
+          \                suffix=f\"_{audio_file.stem}.wav\", delete=False\n    \
+          \        ) as tmp:\n                temp_wav = pathlib.Path(tmp.name)\n\n\
+          \            try:\n                # Use ffmpeg to convert to WAV format\n\
+          \                subprocess.run(\n                    [\n              \
+          \          \"ffmpeg\",\n                        \"-i\",\n              \
+          \          str(audio_file),\n                        \"-ar\",\n        \
+          \                \"16000\",  # 16kHz sample rate (good for whisper)\n  \
+          \                      \"-ac\",\n                        \"1\",  # mono\
+          \ channel\n                        \"-c:a\",\n                        \"\
+          pcm_s16le\",  # 16-bit PCM\n                        \"-y\",  # overwrite\
+          \ output file\n                        str(temp_wav),\n                \
+          \    ],\n                    check=True,\n                    capture_output=True,\n\
+          \                )\n\n                processed_audio_files.append(temp_wav)\n\
+          \                temp_files_to_cleanup.append(temp_wav)\n              \
+          \  print(f\"Successfully converted {audio_file.name} to WAV format\")\n\n\
+          \            except subprocess.CalledProcessError as e:\n              \
+          \  print(f\"ffmpeg conversion failed for {audio_file.name}: {e}\")\n   \
+          \             if e.stderr:\n                    print(f\"stderr: {e.stderr.decode()}\"\
+          )\n                continue\n        return (processed_audio_files, temp_files_to_cleanup)\n\
+          \n    # Clean up temporary files\n    def cleanup_temp_files(temp_files_to_cleanup:\
+          \ List[pathlib.Path]) -> None:\n        for temp_file in temp_files_to_cleanup:\n\
+          \            temp_file.unlink(missing_ok=True)\n            print(f\"Cleaned\
+          \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
+          \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
+          \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
+          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n\
+          \            repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
           \            verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
           \            temperature=0.0,\n            max_new_tokens=256,\n       \
           \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\

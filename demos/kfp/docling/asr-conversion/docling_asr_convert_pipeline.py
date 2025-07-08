@@ -255,53 +255,53 @@ def docling_convert_and_ingest_audio(
             if audio_file.suffix.lower() == ".wav":
                 processed_audio_files.append(audio_file)
                 print(f"Using WAV file directly: {audio_file.name}")
-            else:
-                # Convert non-WAV files to WAV format using ffmpeg
-                print(f"Converting {audio_file.name} to WAV format...")
-                import tempfile
+                continue
 
-                with tempfile.NamedTemporaryFile(
-                    suffix=f"_{audio_file.stem}.wav", delete=False
-                ) as tmp:
-                    temp_wav = pathlib.Path(tmp.name)
+            # Convert non-WAV files to WAV format using ffmpeg
+            print(f"Converting {audio_file.name} to WAV format...")
+            import tempfile
 
-                try:
-                    # Use ffmpeg to convert to WAV format
-                    subprocess.run(
-                        [
-                            "ffmpeg",
-                            "-i",
-                            str(audio_file),
-                            "-ar",
-                            "16000",  # 16kHz sample rate (good for whisper)
-                            "-ac",
-                            "1",  # mono channel
-                            "-c:a",
-                            "pcm_s16le",  # 16-bit PCM
-                            "-y",  # overwrite output file
-                            str(temp_wav),
-                        ],
-                        check=True,
-                        capture_output=True,
-                    )
+            with tempfile.NamedTemporaryFile(
+                suffix=f"_{audio_file.stem}.wav", delete=False
+            ) as tmp:
+                temp_wav = pathlib.Path(tmp.name)
 
-                    processed_audio_files.append(temp_wav)
-                    temp_files_to_cleanup.append(temp_wav)
-                    print(f"Successfully converted {audio_file.name} to WAV format")
+            try:
+                # Use ffmpeg to convert to WAV format
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-i",
+                        str(audio_file),
+                        "-ar",
+                        "16000",  # 16kHz sample rate (good for whisper)
+                        "-ac",
+                        "1",  # mono channel
+                        "-c:a",
+                        "pcm_s16le",  # 16-bit PCM
+                        "-y",  # overwrite output file
+                        str(temp_wav),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
 
-                except subprocess.CalledProcessError as e:
-                    print(f"ffmpeg conversion failed for {audio_file.name}: {e}")
-                    if e.stderr:
-                        print(f"stderr: {e.stderr.decode()}")
-                    continue
+                processed_audio_files.append(temp_wav)
+                temp_files_to_cleanup.append(temp_wav)
+                print(f"Successfully converted {audio_file.name} to WAV format")
+
+            except subprocess.CalledProcessError as e:
+                print(f"ffmpeg conversion failed for {audio_file.name}: {e}")
+                if e.stderr:
+                    print(f"stderr: {e.stderr.decode()}")
+                continue
         return (processed_audio_files, temp_files_to_cleanup)
 
     # Clean up temporary files
     def cleanup_temp_files(temp_files_to_cleanup: List[pathlib.Path]) -> None:
         for temp_file in temp_files_to_cleanup:
-            if temp_file.exists():
-                temp_file.unlink()
-                print(f"Cleaned up temporary file: {temp_file.name}")
+            temp_file.unlink(missing_ok=True)
+            print(f"Cleaned up temporary file: {temp_file.name}")
 
     # Return a Docling DocumentConverter configured for ASR with whisper_turbo model.
     def get_asr_converter() -> DocumentConverter:
