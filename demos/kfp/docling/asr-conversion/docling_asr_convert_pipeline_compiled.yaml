@@ -463,21 +463,22 @@ deploymentSpec:
           \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
           \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
           \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
-          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n\
-          \            repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
-          \            verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
+          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_asr_model\
+          \ = InlineAsrNativeWhisperOptions(\n            repo_id=\"turbo\",\n   \
+          \         inference_framework=InferenceAsrFramework.WHISPER,\n         \
+          \   verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
           \            temperature=0.0,\n            max_new_tokens=256,\n       \
           \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\
-          \        pipeline_options.asr_options = whisper_turbo_llm\n\n        converter\
-          \ = DocumentConverter(\n            format_options={\n                InputFormat.AUDIO:\
-          \ AudioFormatOption(\n                    pipeline_cls=AsrPipeline,\n  \
-          \                  pipeline_options=pipeline_options,\n                )\n\
-          \            }\n        )\n\n        return converter\n\n    # ---- Embedding\
-          \ Helper functions ----\n    def setup_chunker_and_embedder(\n        embed_model_id:\
-          \ str, max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
-          \        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n   \
-          \     embedding_model = SentenceTransformer(embed_model_id)\n        chunker\
-          \ = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
+          \        pipeline_options.asr_options = whisper_turbo_asr_model\n\n    \
+          \    converter = DocumentConverter(\n            format_options={\n    \
+          \            InputFormat.AUDIO: AudioFormatOption(\n                   \
+          \ pipeline_cls=AsrPipeline,\n                    pipeline_options=pipeline_options,\n\
+          \                )\n            }\n        )\n\n        return converter\n\
+          \n    # ---- Embedding Helper functions ----\n    def setup_chunker_and_embedder(\n\
+          \        embed_model_id: str, max_tokens: int\n    ) -> Tuple[SentenceTransformer,\
+          \ HybridChunker]:\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
+          \        embedding_model = SentenceTransformer(embed_model_id)\n       \
+          \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ list[float]:\n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
@@ -668,21 +669,22 @@ deploymentSpec:
           \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
           \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
           \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
-          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_llm = InlineAsrNativeWhisperOptions(\n\
-          \            repo_id=\"turbo\",\n            inference_framework=InferenceAsrFramework.WHISPER,\n\
-          \            verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
+          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_asr_model\
+          \ = InlineAsrNativeWhisperOptions(\n            repo_id=\"turbo\",\n   \
+          \         inference_framework=InferenceAsrFramework.WHISPER,\n         \
+          \   verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
           \            temperature=0.0,\n            max_new_tokens=256,\n       \
           \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\
-          \        pipeline_options.asr_options = whisper_turbo_llm\n\n        converter\
-          \ = DocumentConverter(\n            format_options={\n                InputFormat.AUDIO:\
-          \ AudioFormatOption(\n                    pipeline_cls=AsrPipeline,\n  \
-          \                  pipeline_options=pipeline_options,\n                )\n\
-          \            }\n        )\n\n        return converter\n\n    # ---- Embedding\
-          \ Helper functions ----\n    def setup_chunker_and_embedder(\n        embed_model_id:\
-          \ str, max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
-          \        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n   \
-          \     embedding_model = SentenceTransformer(embed_model_id)\n        chunker\
-          \ = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
+          \        pipeline_options.asr_options = whisper_turbo_asr_model\n\n    \
+          \    converter = DocumentConverter(\n            format_options={\n    \
+          \            InputFormat.AUDIO: AudioFormatOption(\n                   \
+          \ pipeline_cls=AsrPipeline,\n                    pipeline_options=pipeline_options,\n\
+          \                )\n            }\n        )\n\n        return converter\n\
+          \n    # ---- Embedding Helper functions ----\n    def setup_chunker_and_embedder(\n\
+          \        embed_model_id: str, max_tokens: int\n    ) -> Tuple[SentenceTransformer,\
+          \ HybridChunker]:\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
+          \        embedding_model = SentenceTransformer(embed_model_id)\n       \
+          \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ list[float]:\n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
