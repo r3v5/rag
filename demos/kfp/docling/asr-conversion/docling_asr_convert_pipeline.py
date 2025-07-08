@@ -306,7 +306,7 @@ def docling_convert_and_ingest_audio(
     # Return a Docling DocumentConverter configured for ASR with whisper_turbo model.
     def get_asr_converter() -> DocumentConverter:
         """Create a DocumentConverter configured for ASR with whisper_turbo model."""
-        whisper_turbo_llm = InlineAsrNativeWhisperOptions(
+        whisper_turbo_asr_model = InlineAsrNativeWhisperOptions(
             repo_id="turbo",
             inference_framework=InferenceAsrFramework.WHISPER,
             verbose=True,
@@ -318,7 +318,7 @@ def docling_convert_and_ingest_audio(
         )
 
         pipeline_options = AsrPipelineOptions()
-        pipeline_options.asr_options = whisper_turbo_llm
+        pipeline_options.asr_options = whisper_turbo_asr_model
 
         converter = DocumentConverter(
             format_options={
