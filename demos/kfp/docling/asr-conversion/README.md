@@ -14,7 +14,7 @@ graph TD
 
 A[Register Milvus Vector DB] --> B[Import audio files in AWS S3 bucket storage]
 
-B --> C[Create audio splits based on input file format for parallel processing]
+B --> C[Create audio files splits for parallel processing]
 
 C --> D[Install FFmpeg to convert all audio files to WAV format]
 
