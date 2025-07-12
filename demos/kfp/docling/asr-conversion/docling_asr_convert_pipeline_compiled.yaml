@@ -11,6 +11,14 @@
 #    use_gpu: bool [Default: True]
 #    vector_db_id: str [Default: 'asr-vector-db']
 components:
+  comp-clear-vector-db:
+    executorLabel: exec-clear-vector-db
+    inputDefinitions:
+      parameters:
+        service_url:
+          parameterType: STRING
+        vector_db_id:
+          parameterType: STRING
   comp-condition-3:
     dag:
       tasks:
@@ -305,6 +313,43 @@ components:
           parameterType: STRING
 deploymentSpec:
   executors:
+    exec-clear-vector-db:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - clear_vector_db
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.13.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'llama-stack-client'\
+          \ 'fire' 'httpx' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef clear_vector_db(\n    service_url: str,\n    vector_db_id: str,\n\
+          ):\n    \"\"\"Unregisters (deletes) a vector database if it exists.\"\"\"\
+          \n    from llama_stack_client import LlamaStackClient\n\n    client = LlamaStackClient(base_url=service_url)\n\
+          \n    try:\n        print(f\"Attempting to clear vector DB '{vector_db_id}'...\"\
+          )\n        client.vector_dbs.unregister(vector_db_id=vector_db_id)\n   \
+          \     print(f\"Successfully cleared vector DB '{vector_db_id}'.\")\n\n \
+          \   except Exception as e:\n        print(\n            f\"Warning: Could\
+          \ not clear vector DB '{vector_db_id}'.\"\n            f\"This is expected\
+          \ if it's the first run. Error: {e}\"\n        )\n\n"
+        image: registry.redhat.io/ubi9/python-312@sha256:e80ff3673c95b91f0dafdbe97afb261eab8244d7fd8b47e20ffcbcfee27fb168
     exec-create-audio-splits:
       container:
         args:
@@ -375,11 +420,10 @@ deploymentSpec:
           input-recordings\"),\n    audio_split: List[str],\n    output_path: dsl.OutputPath(\"\
           output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
           \ str,\n    vector_db_id: str,\n):\n    import pathlib\n    import subprocess\n\
-          \    import os\n\n    from docling.datamodel.pipeline_options_asr_model\
-          \ import (\n        InlineAsrNativeWhisperOptions,\n        InferenceAsrFramework,\n\
-          \    )\n\n    from docling.datamodel.base_models import ConversionStatus,\
-          \ InputFormat\n    from docling.datamodel.document import ConversionResult\n\
-          \    from docling.datamodel.pipeline_options import AsrPipelineOptions\n\
+          \    import os\n    import re\n\n    from docling.datamodel.base_models\
+          \ import ConversionStatus, InputFormat\n    from docling.datamodel.document\
+          \ import ConversionResult\n    from docling.datamodel.pipeline_options import\
+          \ AsrPipelineOptions\n    from docling.datamodel import asr_model_specs\n\
           \    from docling.document_converter import AudioFormatOption, DocumentConverter\n\
           \    from docling.pipeline.asr_pipeline import AsrPipeline\n    from docling_core.types.doc.document\
           \ import DoclingDocument\n\n    from transformers import AutoTokenizer\n\
@@ -460,25 +504,26 @@ deploymentSpec:
           \n    # Clean up temporary files\n    def cleanup_temp_files(temp_files_to_cleanup:\
           \ List[pathlib.Path]) -> None:\n        for temp_file in temp_files_to_cleanup:\n\
           \            temp_file.unlink(missing_ok=True)\n            print(f\"Cleaned\
-          \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
-          \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
-          \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
-          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_asr_model\
-          \ = InlineAsrNativeWhisperOptions(\n            repo_id=\"turbo\",\n   \
-          \         inference_framework=InferenceAsrFramework.WHISPER,\n         \
-          \   verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
-          \            temperature=0.0,\n            max_new_tokens=256,\n       \
-          \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\
-          \        pipeline_options.asr_options = whisper_turbo_asr_model\n\n    \
-          \    converter = DocumentConverter(\n            format_options={\n    \
-          \            InputFormat.AUDIO: AudioFormatOption(\n                   \
-          \ pipeline_cls=AsrPipeline,\n                    pipeline_options=pipeline_options,\n\
-          \                )\n            }\n        )\n\n        return converter\n\
-          \n    # ---- Embedding Helper functions ----\n    def setup_chunker_and_embedder(\n\
-          \        embed_model_id: str, max_tokens: int\n    ) -> Tuple[SentenceTransformer,\
-          \ HybridChunker]:\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
-          \        embedding_model = SentenceTransformer(embed_model_id)\n       \
-          \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
+          \ up temporary file: {temp_file.name}\")\n\n    def clean_timestamps(doc:\
+          \ DoclingDocument) -> None:\n        for item in doc.texts:\n          \
+          \  cleaned_text = re.sub(r\"\\[time: .*?\\]\\s*\", \"\", item.text)\n  \
+          \          item.text = cleaned_text\n            item.orig = cleaned_text\n\
+          \n    # Return a Docling DocumentConverter configured for ASR with whisper_turbo\
+          \ model.\n    def get_asr_converter() -> DocumentConverter:\n        \"\"\
+          \"Create a DocumentConverter configured for ASR with whisper_turbo model.\"\
+          \"\"\n        pipeline_options = AsrPipelineOptions()\n        pipeline_options.asr_options\
+          \ = asr_model_specs.WHISPER_TURBO\n        pipeline_options.asr_options.timestamps\
+          \ = False\n        pipeline_options.asr_options.word_timestamps = False\n\
+          \        pipeline_options.asr_options.verbose = False\n\n        converter\
+          \ = DocumentConverter(\n            format_options={\n                InputFormat.AUDIO:\
+          \ AudioFormatOption(\n                    pipeline_cls=AsrPipeline,\n  \
+          \                  pipeline_options=pipeline_options,\n                )\n\
+          \            }\n        )\n\n        return converter\n\n    # ---- Embedding\
+          \ Helper functions ----\n    def setup_chunker_and_embedder(\n        embed_model_id:\
+          \ str, max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
+          \        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n   \
+          \     embedding_model = SentenceTransformer(embed_model_id)\n        chunker\
+          \ = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ list[float]:\n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
@@ -515,13 +560,13 @@ deploymentSpec:
           \            f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
           \n                )\n                continue\n\n            processed_docs\
           \ += 1\n            file_name = conv_res.input.file.stem\n            document\
-          \ = conv_res.document\n\n            if document is None:\n            \
-          \    _log.warning(f\"Document conversion failed for {file_name}\")\n   \
-          \             continue\n\n            chunks_with_embeddings = create_chunks_with_embeddings(\n\
-          \                document, embedding_model, chunker, file_name\n       \
-          \     )\n\n            insert_chunks_with_embeddings_to_vector_db(\n   \
-          \             chunks_with_embeddings, vector_db_id, client\n           \
-          \ )\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
+          \ = conv_res.document\n            clean_timestamps(document)\n\n      \
+          \      if document is None:\n                _log.warning(f\"Document conversion\
+          \ failed for {file_name}\")\n                continue\n\n            chunks_with_embeddings\
+          \ = create_chunks_with_embeddings(\n                document, embedding_model,\
+          \ chunker, file_name\n            )\n\n            insert_chunks_with_embeddings_to_vector_db(\n\
+          \                chunks_with_embeddings, vector_db_id, client\n        \
+          \    )\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
           )\n\n    # Install ffmpeg before proceeding\n    install_ffmpeg()\n\n  \
           \  input_path = pathlib.Path(input_path)\n    output_path = pathlib.Path(output_path)\n\
           \    output_path.mkdir(parents=True, exist_ok=True)\n\n    input_audio_files\
@@ -581,11 +626,10 @@ deploymentSpec:
           input-recordings\"),\n    audio_split: List[str],\n    output_path: dsl.OutputPath(\"\
           output-md\"),\n    embed_model_id: str,\n    max_tokens: int,\n    service_url:\
           \ str,\n    vector_db_id: str,\n):\n    import pathlib\n    import subprocess\n\
-          \    import os\n\n    from docling.datamodel.pipeline_options_asr_model\
-          \ import (\n        InlineAsrNativeWhisperOptions,\n        InferenceAsrFramework,\n\
-          \    )\n\n    from docling.datamodel.base_models import ConversionStatus,\
-          \ InputFormat\n    from docling.datamodel.document import ConversionResult\n\
-          \    from docling.datamodel.pipeline_options import AsrPipelineOptions\n\
+          \    import os\n    import re\n\n    from docling.datamodel.base_models\
+          \ import ConversionStatus, InputFormat\n    from docling.datamodel.document\
+          \ import ConversionResult\n    from docling.datamodel.pipeline_options import\
+          \ AsrPipelineOptions\n    from docling.datamodel import asr_model_specs\n\
           \    from docling.document_converter import AudioFormatOption, DocumentConverter\n\
           \    from docling.pipeline.asr_pipeline import AsrPipeline\n    from docling_core.types.doc.document\
           \ import DoclingDocument\n\n    from transformers import AutoTokenizer\n\
@@ -666,25 +710,26 @@ deploymentSpec:
           \n    # Clean up temporary files\n    def cleanup_temp_files(temp_files_to_cleanup:\
           \ List[pathlib.Path]) -> None:\n        for temp_file in temp_files_to_cleanup:\n\
           \            temp_file.unlink(missing_ok=True)\n            print(f\"Cleaned\
-          \ up temporary file: {temp_file.name}\")\n\n    # Return a Docling DocumentConverter\
-          \ configured for ASR with whisper_turbo model.\n    def get_asr_converter()\
-          \ -> DocumentConverter:\n        \"\"\"Create a DocumentConverter configured\
-          \ for ASR with whisper_turbo model.\"\"\"\n        whisper_turbo_asr_model\
-          \ = InlineAsrNativeWhisperOptions(\n            repo_id=\"turbo\",\n   \
-          \         inference_framework=InferenceAsrFramework.WHISPER,\n         \
-          \   verbose=True,\n            timestamps=False,\n            word_timestamps=False,\n\
-          \            temperature=0.0,\n            max_new_tokens=256,\n       \
-          \     max_time_chunk=30.0,\n        )\n\n        pipeline_options = AsrPipelineOptions()\n\
-          \        pipeline_options.asr_options = whisper_turbo_asr_model\n\n    \
-          \    converter = DocumentConverter(\n            format_options={\n    \
-          \            InputFormat.AUDIO: AudioFormatOption(\n                   \
-          \ pipeline_cls=AsrPipeline,\n                    pipeline_options=pipeline_options,\n\
-          \                )\n            }\n        )\n\n        return converter\n\
-          \n    # ---- Embedding Helper functions ----\n    def setup_chunker_and_embedder(\n\
-          \        embed_model_id: str, max_tokens: int\n    ) -> Tuple[SentenceTransformer,\
-          \ HybridChunker]:\n        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n\
-          \        embedding_model = SentenceTransformer(embed_model_id)\n       \
-          \ chunker = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
+          \ up temporary file: {temp_file.name}\")\n\n    def clean_timestamps(doc:\
+          \ DoclingDocument) -> None:\n        for item in doc.texts:\n          \
+          \  cleaned_text = re.sub(r\"\\[time: .*?\\]\\s*\", \"\", item.text)\n  \
+          \          item.text = cleaned_text\n            item.orig = cleaned_text\n\
+          \n    # Return a Docling DocumentConverter configured for ASR with whisper_turbo\
+          \ model.\n    def get_asr_converter() -> DocumentConverter:\n        \"\"\
+          \"Create a DocumentConverter configured for ASR with whisper_turbo model.\"\
+          \"\"\n        pipeline_options = AsrPipelineOptions()\n        pipeline_options.asr_options\
+          \ = asr_model_specs.WHISPER_TURBO\n        pipeline_options.asr_options.timestamps\
+          \ = False\n        pipeline_options.asr_options.word_timestamps = False\n\
+          \        pipeline_options.asr_options.verbose = False\n\n        converter\
+          \ = DocumentConverter(\n            format_options={\n                InputFormat.AUDIO:\
+          \ AudioFormatOption(\n                    pipeline_cls=AsrPipeline,\n  \
+          \                  pipeline_options=pipeline_options,\n                )\n\
+          \            }\n        )\n\n        return converter\n\n    # ---- Embedding\
+          \ Helper functions ----\n    def setup_chunker_and_embedder(\n        embed_model_id:\
+          \ str, max_tokens: int\n    ) -> Tuple[SentenceTransformer, HybridChunker]:\n\
+          \        tokenizer = AutoTokenizer.from_pretrained(embed_model_id)\n   \
+          \     embedding_model = SentenceTransformer(embed_model_id)\n        chunker\
+          \ = HybridChunker(\n            tokenizer=tokenizer, max_tokens=max_tokens,\
           \ merge_peers=True\n        )\n        return embedding_model, chunker\n\
           \n    def embed_text(text: str, embedding_model: SentenceTransformer) ->\
           \ list[float]:\n        return embedding_model.encode([text], normalize_embeddings=True).tolist()[0]\n\
@@ -721,13 +766,13 @@ deploymentSpec:
           \            f\"Conversion failed for {conv_res.input.file.stem}: {conv_res.status}\"\
           \n                )\n                continue\n\n            processed_docs\
           \ += 1\n            file_name = conv_res.input.file.stem\n            document\
-          \ = conv_res.document\n\n            if document is None:\n            \
-          \    _log.warning(f\"Document conversion failed for {file_name}\")\n   \
-          \             continue\n\n            chunks_with_embeddings = create_chunks_with_embeddings(\n\
-          \                document, embedding_model, chunker, file_name\n       \
-          \     )\n\n            insert_chunks_with_embeddings_to_vector_db(\n   \
-          \             chunks_with_embeddings, vector_db_id, client\n           \
-          \ )\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
+          \ = conv_res.document\n            clean_timestamps(document)\n\n      \
+          \      if document is None:\n                _log.warning(f\"Document conversion\
+          \ failed for {file_name}\")\n                continue\n\n            chunks_with_embeddings\
+          \ = create_chunks_with_embeddings(\n                document, embedding_model,\
+          \ chunker, file_name\n            )\n\n            insert_chunks_with_embeddings_to_vector_db(\n\
+          \                chunks_with_embeddings, vector_db_id, client\n        \
+          \    )\n\n        _log.info(f\"Processed {processed_docs} documents successfully.\"\
           )\n\n    # Install ffmpeg before proceeding\n    install_ffmpeg()\n\n  \
           \  input_path = pathlib.Path(input_path)\n    output_path = pathlib.Path(output_path)\n\
           \    output_path.mkdir(parents=True, exist_ok=True)\n\n    input_audio_files\
@@ -839,6 +884,18 @@ pipelineInfo:
 root:
   dag:
     tasks:
+      clear-vector-db:
+        cachingOptions: {}
+        componentRef:
+          name: comp-clear-vector-db
+        inputs:
+          parameters:
+            service_url:
+              componentInputParameter: service_url
+            vector_db_id:
+              componentInputParameter: vector_db_id
+        taskInfo:
+          name: clear-vector-db
       create-audio-splits:
         cachingOptions:
           enableCache: true
@@ -907,6 +964,8 @@ root:
         cachingOptions: {}
         componentRef:
           name: comp-register-vector-db
+        dependentTasks:
+        - clear-vector-db
         inputs:
           parameters:
             embed_model_id:
