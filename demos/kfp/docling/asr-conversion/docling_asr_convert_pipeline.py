@@ -18,6 +18,31 @@ _log = logging.getLogger(__name__)
 
 @dsl.component(
     base_image=PYTHON_BASE_IMAGE,
+    packages_to_install=["llama-stack-client", "fire", "httpx"],
+)
+def clear_vector_db(
+    service_url: str,
+    vector_db_id: str,
+):
+    """Unregisters (deletes) a vector database if it exists."""
+    from llama_stack_client import LlamaStackClient
+
+    client = LlamaStackClient(base_url=service_url)
+
+    try:
+        print(f"Attempting to clear vector DB '{vector_db_id}'...")
+        client.vector_dbs.unregister(vector_db_id=vector_db_id)
+        print(f"Successfully cleared vector DB '{vector_db_id}'.")
+
+    except Exception as e:
+        print(
+            f"Warning: Could not clear vector DB '{vector_db_id}'."
+            f"This is expected if it's the first run. Error: {e}"
+        )
+
+
+@dsl.component(
+    base_image=PYTHON_BASE_IMAGE,
     packages_to_install=["llama-stack-client", "fire", "requests"],
 )
 def register_vector_db(
@@ -139,15 +164,12 @@ def docling_convert_and_ingest_audio(
     import pathlib
     import subprocess
     import os
-
-    from docling.datamodel.pipeline_options_asr_model import (
-        InlineAsrNativeWhisperOptions,
-        InferenceAsrFramework,
-    )
+    import re
 
     from docling.datamodel.base_models import ConversionStatus, InputFormat
     from docling.datamodel.document import ConversionResult
     from docling.datamodel.pipeline_options import AsrPipelineOptions
+    from docling.datamodel import asr_model_specs
     from docling.document_converter import AudioFormatOption, DocumentConverter
     from docling.pipeline.asr_pipeline import AsrPipeline
     from docling_core.types.doc.document import DoclingDocument
@@ -303,22 +325,20 @@ def docling_convert_and_ingest_audio(
             temp_file.unlink(missing_ok=True)
             print(f"Cleaned up temporary file: {temp_file.name}")
 
+    def clean_timestamps(doc: DoclingDocument) -> None:
+        for item in doc.texts:
+            cleaned_text = re.sub(r"\[time: .*?\]\s*", "", item.text)
+            item.text = cleaned_text
+            item.orig = cleaned_text
+
     # Return a Docling DocumentConverter configured for ASR with whisper_turbo model.
     def get_asr_converter() -> DocumentConverter:
         """Create a DocumentConverter configured for ASR with whisper_turbo model."""
-        whisper_turbo_asr_model = InlineAsrNativeWhisperOptions(
-            repo_id="turbo",
-            inference_framework=InferenceAsrFramework.WHISPER,
-            verbose=True,
-            timestamps=False,
-            word_timestamps=False,
-            temperature=0.0,
-            max_new_tokens=256,
-            max_time_chunk=30.0,
-        )
-
         pipeline_options = AsrPipelineOptions()
-        pipeline_options.asr_options = whisper_turbo_asr_model
+        pipeline_options.asr_options = asr_model_specs.WHISPER_TURBO
+        pipeline_options.asr_options.timestamps = False
+        pipeline_options.asr_options.word_timestamps = False
+        pipeline_options.asr_options.verbose = False
 
         converter = DocumentConverter(
             format_options={
@@ -414,6 +434,7 @@ def docling_convert_and_ingest_audio(
             processed_docs += 1
             file_name = conv_res.input.file.stem
             document = conv_res.document
+            clean_timestamps(document)
 
             if document is None:
                 _log.warning(f"Document conversion failed for {file_name}")
@@ -481,11 +502,17 @@ def docling_convert_pipeline(
     :param use_gpu: boolean to enable/disable gpu in the docling workers
     :return:
     """
+    clear_task = clear_vector_db(
+        service_url=service_url,
+        vector_db_id=vector_db_id,
+    )
+    clear_task.set_caching_options(False)
+
     register_task = register_vector_db(
         service_url=service_url,
         vector_db_id=vector_db_id,
         embed_model_id=embed_model_id,
-    )
+    ).after(clear_task)
     register_task.set_caching_options(False)
 
     import_task = import_audio_files(
