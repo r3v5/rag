@@ -489,6 +489,7 @@ def docling_convert_pipeline(
     embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
     max_tokens: int = 512,
     use_gpu: bool = True,  # use only if you have additional gpu worker
+    clean_vector_db: bool = True,  # if True, the vector database will be cleared during running the pipeline
 ) -> None:
     """
     Converts audio recordings to text using Docling ASR and generates embeddings
@@ -500,74 +501,138 @@ def docling_convert_pipeline(
     :param embed_model_id: Model ID for embedding generation
     :param max_tokens: Maximum number of tokens per chunk
     :param use_gpu: boolean to enable/disable gpu in the docling workers
+    :param clean_vector_db: boolean to enable/disable clearing the vector database before running the pipeline
     :return:
     """
-    clear_task = clear_vector_db(
-        service_url=service_url,
-        vector_db_id=vector_db_id,
-    )
-    clear_task.set_caching_options(False)
+    with dsl.If(clean_vector_db == True):
+        clear_task = clear_vector_db(
+            service_url=service_url,
+            vector_db_id=vector_db_id,
+        )
+        clear_task.set_caching_options(False)
 
-    register_task = register_vector_db(
-        service_url=service_url,
-        vector_db_id=vector_db_id,
-        embed_model_id=embed_model_id,
-    ).after(clear_task)
-    register_task.set_caching_options(False)
+        register_task = register_vector_db(
+            service_url=service_url,
+            vector_db_id=vector_db_id,
+            embed_model_id=embed_model_id,
+        ).after(clear_task)
+        register_task.set_caching_options(False)
 
-    import_task = import_audio_files(
-        base_url=base_url,
-        audio_filenames=audio_filenames,
-    )
-    import_task.set_caching_options(True)
+        import_task = import_audio_files(
+            base_url=base_url,
+            audio_filenames=audio_filenames,
+        )
+        import_task.set_caching_options(True)
 
-    audio_splits = create_audio_splits(
-        input_path=import_task.output,
-        num_splits=num_workers,
-    ).set_caching_options(True)
+        audio_splits = create_audio_splits(
+            input_path=import_task.output,
+            num_splits=num_workers,
+        ).set_caching_options(True)
 
-    with dsl.ParallelFor(audio_splits.output) as audio_split:
-        with dsl.If(use_gpu == True):
-            convert_task = docling_convert_and_ingest_audio(
-                input_path=import_task.output,
-                audio_split=audio_split,
-                embed_model_id=embed_model_id,
-                max_tokens=max_tokens,
-                service_url=service_url,
-                vector_db_id=vector_db_id,
-            )
-            convert_task.set_caching_options(False)
-            convert_task.set_cpu_request("500m")
-            convert_task.set_cpu_limit("4")
-            convert_task.set_memory_request("2Gi")
-            convert_task.set_memory_limit("6Gi")
-            convert_task.set_accelerator_type("nvidia.com/gpu")
-            convert_task.set_accelerator_limit(1)
-            add_toleration_json(
-                convert_task,
-                [
-                    {
-                        "effect": "NoSchedule",
-                        "key": "nvidia.com/gpu",
-                        "operator": "Exists",
-                    }
-                ],
-            )
-            add_node_selector_json(convert_task, {})
-        with dsl.Else():
-            convert_task = docling_convert_and_ingest_audio(
-                input_path=import_task.output,
-                audio_split=audio_split,
-                embed_model_id=embed_model_id,
-                max_tokens=max_tokens,
-                service_url=service_url,
-                vector_db_id=vector_db_id,
-            )
-            convert_task.set_caching_options(False)
-            convert_task.set_cpu_request("500m")
-            convert_task.set_cpu_limit("4")
-            convert_task.set_memory_request("2Gi")
-            convert_task.set_memory_limit("6Gi")
+        with dsl.ParallelFor(audio_splits.output) as audio_split:
+            with dsl.If(use_gpu == True):
+                convert_task = docling_convert_and_ingest_audio(
+                    input_path=import_task.output,
+                    audio_split=audio_split,
+                    embed_model_id=embed_model_id,
+                    max_tokens=max_tokens,
+                    service_url=service_url,
+                    vector_db_id=vector_db_id,
+                )
+                convert_task.set_caching_options(False)
+                convert_task.set_cpu_request("500m")
+                convert_task.set_cpu_limit("4")
+                convert_task.set_memory_request("2Gi")
+                convert_task.set_memory_limit("6Gi")
+                convert_task.set_accelerator_type("nvidia.com/gpu")
+                convert_task.set_accelerator_limit(1)
+                add_toleration_json(
+                    convert_task,
+                    [
+                        {
+                            "effect": "NoSchedule",
+                            "key": "nvidia.com/gpu",
+                            "operator": "Exists",
+                        }
+                    ],
+                )
+                add_node_selector_json(convert_task, {})
+            with dsl.Else():
+                convert_task = docling_convert_and_ingest_audio(
+                    input_path=import_task.output,
+                    audio_split=audio_split,
+                    embed_model_id=embed_model_id,
+                    max_tokens=max_tokens,
+                    service_url=service_url,
+                    vector_db_id=vector_db_id,
+                )
+                convert_task.set_caching_options(False)
+                convert_task.set_cpu_request("500m")
+                convert_task.set_cpu_limit("4")
+                convert_task.set_memory_request("2Gi")
+                convert_task.set_memory_limit("6Gi")
+
+    with dsl.Else():
+        register_task = register_vector_db(
+            service_url=service_url,
+            vector_db_id=vector_db_id,
+            embed_model_id=embed_model_id,
+        )
+        register_task.set_caching_options(False)
+
+        import_task = import_audio_files(
+            base_url=base_url,
+            audio_filenames=audio_filenames,
+        )
+        import_task.set_caching_options(True)
+
+        audio_splits = create_audio_splits(
+            input_path=import_task.output,
+            num_splits=num_workers,
+        ).set_caching_options(True)
+
+        with dsl.ParallelFor(audio_splits.output) as audio_split:
+            with dsl.If(use_gpu == True):
+                convert_task = docling_convert_and_ingest_audio(
+                    input_path=import_task.output,
+                    audio_split=audio_split,
+                    embed_model_id=embed_model_id,
+                    max_tokens=max_tokens,
+                    service_url=service_url,
+                    vector_db_id=vector_db_id,
+                )
+                convert_task.set_caching_options(False)
+                convert_task.set_cpu_request("500m")
+                convert_task.set_cpu_limit("4")
+                convert_task.set_memory_request("2Gi")
+                convert_task.set_memory_limit("6Gi")
+                convert_task.set_accelerator_type("nvidia.com/gpu")
+                convert_task.set_accelerator_limit(1)
+                add_toleration_json(
+                    convert_task,
+                    [
+                        {
+                            "effect": "NoSchedule",
+                            "key": "nvidia.com/gpu",
+                            "operator": "Exists",
+                        }
+                    ],
+                )
+                add_node_selector_json(convert_task, {})
+            with dsl.Else():
+                convert_task = docling_convert_and_ingest_audio(
+                    input_path=import_task.output,
+                    audio_split=audio_split,
+                    embed_model_id=embed_model_id,
+                    max_tokens=max_tokens,
+                    service_url=service_url,
+                    vector_db_id=vector_db_id,
+                )
+                convert_task.set_caching_options(False)
+                convert_task.set_cpu_request("500m")
+                convert_task.set_cpu_limit("4")
+                convert_task.set_memory_request("2Gi")
+                convert_task.set_memory_limit("6Gi")
 
 
 if __name__ == "__main__":
