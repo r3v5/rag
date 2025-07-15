@@ -1,0 +1,27 @@
+docling==2.39.0
+docling-core==2.39.0
+
+# Kubeflow Pipelines
+kfp[kubernetes]>= 2.13.0
+
+# Audio processing and ASR
+openai-whisper==20250625
+torch==2.7.1
+torchaudio==2.7.1
+whisper==1.1.10
+
+# Embedding and text processing
+transformers==4.52.4
+sentence-transformers==5.0.0
+
+sqlalchemy==2.0.41
+
+# Vector database and LlamaStack
+llama-stack==0.2.12
+llama-stack-client==0.2.14
+pymilvus==2.5.12
+
+# Utilities
+fire==0.7.0
+requests==2.32.4
+pathlib2==2.3.7.post1
