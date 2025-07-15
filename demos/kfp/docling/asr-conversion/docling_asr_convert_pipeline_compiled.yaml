@@ -4,7 +4,7 @@
 # Inputs:
 #    audio_filenames: str [Default: 'RAG_use_cases.wav, RAG_customers.wav, RAG_benefits.m4a, RAG_vs_Regular_LLM_Output.m4a']
 #    base_url: str [Default: 'https://raw.githubusercontent.com/opendatahub-io/rag/main/demos/testing-data/audio-speech']
-#    clean_vector_db: bool [Default: True]
+#    clean_vector_db: bool [Default: False]
 #    embed_model_id: str [Default: 'ibm-granite/granite-embedding-125m-english']
 #    max_tokens: int [Default: 512.0]
 #    num_workers: int [Default: 1.0]
@@ -2070,7 +2070,7 @@ root:
         isOptional: true
         parameterType: STRING
       clean_vector_db:
-        defaultValue: true
+        defaultValue: false
         description: boolean to enable/disable clearing the vector database before
           running the pipeline
         isOptional: true

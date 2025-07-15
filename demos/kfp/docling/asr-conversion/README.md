@@ -106,7 +106,7 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 -  `embed_model_id`: Embedding model to use (default: `ibm-granite/granite-embedding-125m-english`)
 -  `max_tokens`: Maximum tokens per chunk (default: 512)
 -  `use_gpu`: Whether to use GPU for processing (default: true)
--  `clean_vector_db`: if True, the vector database will be cleared during running the pipeline
+-  `clean_vector_db`: The vector database will be cleared during running the pipeline (default: false)
 
   
 ### Creating the Pipeline for running on GPU node

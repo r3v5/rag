@@ -489,7 +489,7 @@ def docling_convert_pipeline(
     embed_model_id: str = "ibm-granite/granite-embedding-125m-english",
     max_tokens: int = 512,
     use_gpu: bool = True,  # use only if you have additional gpu worker
-    clean_vector_db: bool = True,  # if True, the vector database will be cleared during running the pipeline
+    clean_vector_db: bool = False,  # if True, the vector database will be cleared during running the pipeline
 ) -> None:
     """
     Converts audio recordings to text using Docling ASR and generates embeddings
