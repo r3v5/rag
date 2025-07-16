@@ -1,8 +1,17 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
+# Copyright 2025 IBM, Red Hat
 #
-# This source code is licensed under the terms described in the LICENSE file in
-# the root directory of this source tree.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import itertools
 import logging
@@ -62,37 +71,43 @@ DEFAULT_BATCH_SIZE = 150
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Benchmark embedding models with BEIR datasets")
-    
+    parser = argparse.ArgumentParser(
+        description="Benchmark embedding models with BEIR datasets"
+    )
+
     parser.add_argument(
         "--dataset-names",
         nargs="+",
         default=DATASETS,
-        help=f"List of BEIR datasets to evaluate (default: {DATASETS})"
+        help=f"List of BEIR datasets to evaluate (default: {DATASETS})",
     )
-    
+
     parser.add_argument(
         "--custom-datasets-urls",
         nargs="+",
         default=DEFAULT_CUSTOM_DATASETS_URLS,
-        help=f"Custom URLs for datasets (default: {DEFAULT_CUSTOM_DATASETS_URLS})"
+        help=f"Custom URLs for datasets (default: {DEFAULT_CUSTOM_DATASETS_URLS})",
     )
 
     parser.add_argument(
         "--batch-size",
         type=int,
         default=DEFAULT_BATCH_SIZE,
-        help=f"Batch size for injecting documents (default: {DEFAULT_BATCH_SIZE})"
+        help=f"Batch size for injecting documents (default: {DEFAULT_BATCH_SIZE})",
     )
-    
+
     return parser.parse_args()
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Configure the internal logging from the beir library
 logging.basicConfig(
-    format="%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO, handlers=[LoggingHandler()]
+    format="%(asctime)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+    handlers=[LoggingHandler()],
 )
 
 
@@ -102,7 +117,7 @@ def load_beir_dataset(dataset_name: str, custom_datasets_pairs: dict):
         url = f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{dataset_name}.zip"
     else:
         url = custom_datasets_pairs[dataset_name]
-    
+
     out_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "datasets")
     data_path = os.path.join(out_dir, dataset_name)
 
@@ -115,13 +130,21 @@ def load_beir_dataset(dataset_name: str, custom_datasets_pairs: dict):
 
 # Inject documents into LlamaStack vector database
 def inject_documents_llama_stack(
-    llama_stack_client, corpus, vector_db_provider_id, embedding_model_id, chunk_size_in_tokens, batch_size
+    llama_stack_client,
+    corpus,
+    vector_db_provider_id,
+    embedding_model_id,
+    chunk_size_in_tokens,
+    batch_size,
 ):
     vector_db_id = f"beir-rag-eval-{uuid.uuid4().hex}"
 
     embedding_dimension = None
     for m in llama_stack_client.models.list():
-        if m.api_model_type == "embedding" and m.provider_resource_id == embedding_model_id:
+        if (
+            m.api_model_type == "embedding"
+            and m.provider_resource_id == embedding_model_id
+        ):
             embedding_dimension = m.metadata["embedding_dimension"]
             embedding_model_name = m.identifier
 
@@ -137,7 +160,7 @@ def inject_documents_llama_stack(
     total_docs = len(corpus_items)
 
     for i in range(0, total_docs, batch_size):
-        batch_items = corpus_items[i:i + batch_size]
+        batch_items = corpus_items[i : i + batch_size]
         documents_batch = [
             Document(
                 document_id=doc_id,
@@ -148,10 +171,15 @@ def inject_documents_llama_stack(
             for doc_id, data in batch_items
         ]
 
-        print(f"Inserting batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size} ({len(documents_batch)} docs)")
+        print(
+            f"Inserting batch {i // batch_size + 1}/{(total_docs + batch_size - 1) // batch_size} ({len(documents_batch)} docs)"
+        )
 
         llama_stack_client.tool_runtime.rag_tool.insert(
-            documents=documents_batch, vector_db_id=vector_db_id, chunk_size_in_tokens=chunk_size_in_tokens, timeout=36000
+            documents=documents_batch,
+            vector_db_id=vector_db_id,
+            chunk_size_in_tokens=chunk_size_in_tokens,
+            timeout=36000,
         )
 
     return vector_db_id
@@ -221,31 +249,47 @@ def llama_stack_style_chunker(text, chunk_size_in_tokens):
 
 
 # Inject documents directly into a Milvus lite vector database using the Milvus APIs
-def inject_documents_milvus(corpus, embedding_model_id, chunk_size_in_tokens, batch_size):
+def inject_documents_milvus(
+    corpus, embedding_model_id, chunk_size_in_tokens, batch_size
+):
     collection_name = f"beir_eval_{uuid.uuid4().hex}"
 
-    embedding_model = model.dense.SentenceTransformerEmbeddingFunction(model_name=embedding_model_id, device="mps")
+    embedding_model = model.dense.SentenceTransformerEmbeddingFunction(
+        model_name=embedding_model_id, device="mps"
+    )
     embedding_dimension = embedding_model.dim
 
     db_file = f"./milvus_{uuid.uuid4().hex[0:20]}.db"
     milvus_client = MilvusClient(db_file)
-    milvus_client.create_collection(collection_name=collection_name, dimension=int(embedding_dimension), auto_id=True)
+    milvus_client.create_collection(
+        collection_name=collection_name,
+        dimension=int(embedding_dimension),
+        auto_id=True,
+    )
 
     # Convert corpus into list and process in batches
     corpus_items = list(corpus.items())
     total_docs = len(corpus_items)
 
     for i in range(0, total_docs, batch_size):
-        batch_items = corpus_items[i:i + batch_size]
+        batch_items = corpus_items[i : i + batch_size]
         documents_batch = []
-        
+
         for doc_id, data in batch_items:
             full_text = data["title"] + " " + data["text"]
             chunks = llama_stack_style_chunker(full_text, chunk_size_in_tokens)
             for chunk in chunks:
-                documents_batch.append({"doc_id": doc_id, "vector": embedding_model.encode_documents([chunk])[0], "text": chunk})
+                documents_batch.append(
+                    {
+                        "doc_id": doc_id,
+                        "vector": embedding_model.encode_documents([chunk])[0],
+                        "text": chunk,
+                    }
+                )
 
-        print(f"Inserting batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size} ({len(documents_batch)} chunks)")
+        print(
+            f"Inserting batch {i // batch_size + 1}/{(total_docs + batch_size - 1) // batch_size} ({len(documents_batch)} chunks)"
+        )
         milvus_client.insert(collection_name=collection_name, data=documents_batch)
 
     return milvus_client, collection_name, embedding_model
@@ -355,13 +399,17 @@ def print_stats_significance(scores_a, scores_b, overview_label, label_a, label_
         print("  p_value<0.05 so this result is statistically significant")
         # Note that the logic below if wrong if the mean scores are equal, but that can't be true if p<1.
         higher_model_id = label_a if mean_score_a >= mean_score_b else label_b
-        print(f"  You can conclude that {higher_model_id} generation has a higher score on data of this sort.")
+        print(
+            f"  You can conclude that {higher_model_id} generation has a higher score on data of this sort."
+        )
         return True
     else:
         import math
 
         print("  p_value>=0.05 so this result is NOT statistically significant.")
-        print("  You can conclude that there is not enough data to tell which is higher.")
+        print(
+            "  You can conclude that there is not enough data to tell which is higher."
+        )
         num_samples = len(scores_a)
         margin_of_error = 1 / math.sqrt(num_samples)
         print(
@@ -395,14 +443,22 @@ def print_scores(all_scores):
             for label_a, label_b in itertools.combinations(condition_labels, 2):
                 scores_for_label_a = scores_for_dataset[label_a]
                 scores_for_label_b = scores_for_dataset[label_b]
-                scores_a = [score_group[metric] for score_group in scores_for_label_a.values()]
-                scores_b = [score_group[metric] for score_group in scores_for_label_b.values()]
-                is_significant = print_stats_significance(scores_a, scores_b, overview_label, label_a, label_b)
+                scores_a = [
+                    score_group[metric] for score_group in scores_for_label_a.values()
+                ]
+                scores_b = [
+                    score_group[metric] for score_group in scores_for_label_b.values()
+                ]
+                is_significant = print_stats_significance(
+                    scores_a, scores_b, overview_label, label_a, label_b
+                )
                 print()
                 print()
                 if metric != "time":
                     # we exclude time from the has_significant_difference computation because we only want to throw an error if there is a difference in behavior
-                    has_significant_difference = has_significant_difference or is_significant      
+                    has_significant_difference = (
+                        has_significant_difference or is_significant
+                    )
 
     return has_significant_difference
 
@@ -423,29 +479,40 @@ def evaluate_retrieval_with_and_without_llama_stack(
 
     custom_datasets_pairs = {}
     if custom_datasets_urls:
-        custom_datasets_pairs = {dataset_name: custom_datasets_urls[i] for i, dataset_name in enumerate(datasets)}
+        custom_datasets_pairs = {
+            dataset_name: custom_datasets_urls[i]
+            for i, dataset_name in enumerate(datasets)
+        }
 
     for dataset_name in datasets:
         all_scores[dataset_name] = {}
         corpus, queries, qrels = load_beir_dataset(dataset_name, custom_datasets_pairs)
 
         # Uncomment this line to select only a few documents for debugging
-        #corpus = pick_arbitrary_pairs(corpus)
+        # corpus = pick_arbitrary_pairs(corpus)
 
         retrievers = {}
 
         logger.info(f"Ingesting {dataset_name}, LlamaStackRAGRetriever")
         vector_db_id = inject_documents_llama_stack(
-            llama_stack_client, corpus, vector_db_provider_id, embedding_model_id, chunk_size_in_tokens, batch_size
+            llama_stack_client,
+            corpus,
+            vector_db_provider_id,
+            embedding_model_id,
+            chunk_size_in_tokens,
+            batch_size,
         )
 
         # We set max_tokens_in_context=chunk_size_in_tokens*number_of_search_results so that we won't get errors saying that we have too many tokens.
         # These errors don't really matter because we are not generating responses anyway, but they are a distraction.
         query_config = RAGQueryConfig(
-            max_chunks=number_of_search_results, max_tokens_in_context=chunk_size_in_tokens * number_of_search_results
+            max_chunks=number_of_search_results,
+            max_tokens_in_context=chunk_size_in_tokens * number_of_search_results,
         ).model_dump()
 
-        llama_stack_retriever = LlamaStackRAGRetriever(vector_db_id, query_config, top_k=number_of_search_results)
+        llama_stack_retriever = LlamaStackRAGRetriever(
+            vector_db_id, query_config, top_k=number_of_search_results
+        )
         retrievers["LlamaStackRAGRetriever"] = llama_stack_retriever
 
         print(f"Ingesting {dataset_name}, MilvusRetriever")
@@ -453,7 +520,10 @@ def evaluate_retrieval_with_and_without_llama_stack(
             corpus, embedding_model_id, chunk_size_in_tokens, batch_size
         )
         milvus_retriever = MilvusRetriever(
-            milvus_client, collection_name, embedding_model, top_k=number_of_search_results
+            milvus_client,
+            collection_name,
+            embedding_model,
+            top_k=number_of_search_results,
         )
         retrievers["MilvusRetriever"] = milvus_retriever
 
@@ -482,7 +552,12 @@ def evaluate_retrieval_with_and_without_llama_stack(
 
             if save_files:
                 os.makedirs(results_dir, exist_ok=True)
-                util.save_runfile(os.path.join(results_dir, f"{dataset_name}-{vector_db_id}-{label}.run.trec"), results)
+                util.save_runfile(
+                    os.path.join(
+                        results_dir, f"{dataset_name}-{vector_db_id}-{label}.run.trec"
+                    ),
+                    results,
+                )
     if save_files:
         logger.info(f"All results in {results_dir}")
     return all_scores
@@ -490,37 +565,39 @@ def evaluate_retrieval_with_and_without_llama_stack(
 
 # From Gemini with edits
 def pick_arbitrary_pairs(input_dict, num_pairs=5):
-  """
-  Picks a specified number of arbitrary key-value pairs from a dictionary.
+    """
+    Picks a specified number of arbitrary key-value pairs from a dictionary.
 
-  Args:
-    input_dict: The dictionary to pick from.
-    num_pairs: The number of key-value pairs to pick. Defaults to 5.
+    Args:
+      input_dict: The dictionary to pick from.
+      num_pairs: The number of key-value pairs to pick. Defaults to 5.
 
-  Returns:
-    A new dictionary containing the randomly selected key-value pairs.
-    If the input dictionary has fewer items than num_pairs,
-    all items from the input dictionary are returned.
-  """
-  if not isinstance(input_dict, dict):
-    raise TypeError("Input must be a dictionary.")
-  if not isinstance(num_pairs, int) or num_pairs < 0:
-    raise ValueError("Number of pairs must be a non-negative integer.")
+    Returns:
+      A new dictionary containing the randomly selected key-value pairs.
+      If the input dictionary has fewer items than num_pairs,
+      all items from the input dictionary are returned.
+    """
+    if not isinstance(input_dict, dict):
+        raise TypeError("Input must be a dictionary.")
+    if not isinstance(num_pairs, int) or num_pairs < 0:
+        raise ValueError("Number of pairs must be a non-negative integer.")
 
-  all_items = list(input_dict.items())
+    all_items = list(input_dict.items())
 
-  if len(all_items) <= num_pairs:
-    return dict(all_items) # Return all items if fewer than num_pairs
+    if len(all_items) <= num_pairs:
+        return dict(all_items)  # Return all items if fewer than num_pairs
 
-  picked_items = all_items[0:num_pairs]
-  return dict(picked_items)
+    picked_items = all_items[0:num_pairs]
+    return dict(picked_items)
 
 
 if __name__ == "__main__":
     args = parse_args()
 
     # A check for when custom dataset urls are set they are compared with the number of dataset names
-    if args.custom_datasets_urls and len(args.custom_datasets_urls) != len(args.dataset_names):
+    if args.custom_datasets_urls and len(args.custom_datasets_urls) != len(
+        args.dataset_names
+    ):
         raise ValueError(
             f"Number of custom dataset URLs ({len(args.custom_datasets_urls)}) must match "
             f"number of dataset names ({len(args.dataset_names)}). "
@@ -531,7 +608,12 @@ if __name__ == "__main__":
     llama_stack_client.initialize()
 
     all_scores = evaluate_retrieval_with_and_without_llama_stack(
-        llama_stack_client, args.dataset_names, args.custom_datasets_urls, "milvus", "ibm-granite/granite-embedding-125m-english", args.batch_size
+        llama_stack_client,
+        args.dataset_names,
+        args.custom_datasets_urls,
+        "milvus",
+        "ibm-granite/granite-embedding-125m-english",
+        args.batch_size,
     )
     has_significant_difference = print_scores(all_scores)
     if has_significant_difference:

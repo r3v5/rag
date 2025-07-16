@@ -3,4 +3,3 @@ kind: Kustomization
 
 resources:
   - llama-stack-distribution.yaml
-

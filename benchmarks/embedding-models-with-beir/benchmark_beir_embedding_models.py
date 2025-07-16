@@ -1,3 +1,17 @@
+# Copyright 2025 IBM, Red Hat
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import os
 import uuid
@@ -92,7 +106,11 @@ The documents are processed in batches to avoid memory issues.
 
 
 def inject_documents(
-    llama_stack_client: LlamaStackAsLibraryClient, corpus: dict, batch_size: int, vector_db_provider_id: str, embedding_model: str
+    llama_stack_client: LlamaStackAsLibraryClient,
+    corpus: dict,
+    batch_size: int,
+    vector_db_provider_id: str,
+    embedding_model: str,
 ) -> str:
     vector_db_id = f"beir-rag-eval-{embedding_model}-{uuid.uuid4().hex}"
 
@@ -137,7 +155,9 @@ def inject_documents(
 
 # LlamaStack RAG Retriever
 class LlamaStackRAGRetriever:
-    def __init__(self, vector_db_id: str, query_config: RAGQueryConfig, top_k: int = 10):
+    def __init__(
+        self, vector_db_id: str, query_config: RAGQueryConfig, top_k: int = 10
+    ):
         self.llama_stack_client = llama_stack_client
         self.vector_db_id = vector_db_id
         self.query_config = query_config
@@ -163,7 +183,9 @@ class LlamaStackRAGRetriever:
 
 
 # Adapted from https://github.com/opendatahub-io/llama-stack-demos/blob/main/demos/rag_eval/Agentic_RAG_with_reference_eval.ipynb
-def permutation_test_for_paired_samples(scores_a: list, scores_b: list, iterations: int = 10_000):
+def permutation_test_for_paired_samples(
+    scores_a: list, scores_b: list, iterations: int = 10_000
+):
     """
     Performs a permutation test of a given statistic on provided data.
     """
@@ -184,7 +206,9 @@ def permutation_test_for_paired_samples(scores_a: list, scores_b: list, iteratio
 
 
 # Adapted from https://github.com/opendatahub-io/llama-stack-demos/blob/main/demos/rag_eval/Agentic_RAG_with_reference_eval.ipynb
-def print_stats_significance(scores_a: list, scores_b: list, overview_label: str, label_a: str, label_b: str):
+def print_stats_significance(
+    scores_a: list, scores_b: list, overview_label: str, label_a: str, label_b: str
+):
     mean_score_a = np.mean(scores_a)
     mean_score_b = np.mean(scores_b)
 

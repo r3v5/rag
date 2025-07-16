@@ -47,7 +47,7 @@ oc patch secret hf-token-secret --type='merge' -p='{"data":{"HF_TOKEN":"'$(echo 
 
 ```bash
 # Create secret llama-stack-inference-model-secret providing model info
-# Important: 
+# Important:
 #  - Make sure that the value for INFERENCE_MODEL is correct (it doesn't have points)
 #  - In VLLM_URL you can use internal or external endpoints for the model. Add /v1 at the end
 #  - NEVER set VLLM_TLS_VERIFY=false in production
@@ -60,8 +60,8 @@ oc create secret generic llama-stack-inference-model-secret \
   --from-literal INFERENCE_MODEL="$INFERENCE_MODEL"   \
   --from-literal VLLM_URL="$VLLM_URL"                 \
   --from-literal VLLM_TLS_VERIFY="$VLLM_TLS_VERIFY"   \
-  --from-literal VLLM_API_TOKEN="$VLLM_API_TOKEN"     
-  
+  --from-literal VLLM_API_TOKEN="$VLLM_API_TOKEN"
+
 # Deploy the LlamaStackDistribution
 oc apply -k stack/overlays/vllm-remote-inference-model
 ```
@@ -267,7 +267,7 @@ To completely remove the project and all its resources from OpenShift, follow th
    ```bash
    # Check for processes using port 8080
    lsof -i :8080
-   
+
    # Kill the process if found (replace PID with the actual process ID)
    kill <PID>
    ```
@@ -278,4 +278,4 @@ After completing these steps, all resources associated with the RAG stack will b
 
 - [OpenShift Documentation](https://docs.openshift.com/)
 - [KServe Documentation](https://kserve.github.io/website/)
-- [vLLM Documentation](https://vllm.readthedocs.io/) 
+- [vLLM Documentation](https://vllm.readthedocs.io/)

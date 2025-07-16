@@ -1,7 +1,7 @@
 # Kubeflow Docling Spreadsheets Conversion Pipeline for RAG
 This document explains the **Kubeflow Docling Spreadsheets Conversion Pipeline** - a Kubeflow pipeline that processes spreadsheets of different formats like "*.csv", "*.xlsx", "*.xls", "*.xlsm" with Docling to extract text and generate embeddings for Retrieval-Augmented Generation (RAG) applications. The pipeline supports execution on both GPU and CPU-only nodes.
 
-  
+
 ## Pipeline Overview
 The pipeline transforms spreadsheet files into searchable vector embeddings through the following stages:
 
@@ -27,29 +27,29 @@ H --> I[Ready for RAG Queries]
 
 ```
 
-  
+
 ## Pipeline Components
 
 ### 1. **Vector Database Registration** (`register_vector_db`)
 
 -  **Purpose**: Sets up the vector database with the proper configuration.
 
-  
+
 ### 2. **Spreadsheets Import** (`import_spreadsheet_files`)
 
 -  **Purpose**: Downloads spreadsheet files from remote URLs.
 
-  
+
 
 ### 3. **Spreadsheets Splitting** (`create_spreadsheet_splits`)
 
 -  **Purpose**: Distributes spreadsheet files across multiple parallel workers for faster processing.
 
-  
+
 
 ### 4. **Spreadsheet Conversion and Embedding Generation** (`docling_convert_and_ingest_spreadsheets`)
 
-  
+
 
 -  **Purpose**: Main processing component that extracts data from spreadsheet rows, chunks the text, and generates vector embeddings.
 
@@ -63,7 +63,7 @@ H --> I[Ready for RAG Queries]
 
 -  `.xlsm`
 
-  
+
 ## 🔄 RAG Query Flow
 
 1.  **User Query** → Embedding Model → Query Vector
@@ -74,10 +74,10 @@ H --> I[Ready for RAG Queries]
 
 5.  **LLM Generation** → Final Answer with Context from Spreadsheet
 
-  
+
 The pipeline enables rich RAG applications that can answer questions about spreadsheet content by leveraging the structured data extracted from spreadsheet files.
 
-  
+
 
 ## 🚀 Getting Started
 
@@ -110,7 +110,7 @@ The pipeline enables rich RAG applications that can answer questions about sprea
 
 -  `use_gpu`: Whether to use GPU for processing (default: true)
 
-  
+
 
 ### Creating the Pipeline for running on GPU node
 
@@ -140,9 +140,9 @@ python3 docling_spreadsheets_convert_pipeline.py
 	- [Running a data science pipeline generated from Python code](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/openshift_ai_tutorial_-_fraud_detection_example/implementing-pipelines#running-a-pipeline-generated-from-python-code)
 - Configure the pipeline parameters as needed
 
-  
 
-  
+
+
 ### Query RAG Agent in your Workbench within a Data Science project on OpenShift AI
 1. Open your Workbench
 2. Clone the rag repo and use main branch
