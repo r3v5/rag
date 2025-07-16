@@ -1,10 +1,10 @@
 # Kubeflow Docling ASR Conversion Pipeline for RAG
 
-  
+
 
 This document explains the **Kubeflow Docling ASR (Automatic Speech Recognition) Conversion Pipeline** - a Kubeflow pipeline that processes audio files using Automatic Speech Recognition (ASR) with Docling to extract transcripts and generate embeddings for Retrieval-Augmented Generation (RAG) applications. The pipeline supports execution on both GPU and CPU-only nodes.
 
- 
+
 ## Pipeline Overview
 The pipeline transforms audio files into searchable vector embeddings through the following stages:
 
@@ -31,13 +31,13 @@ H --> I[Insert chunks with text content, embedding and metadata in Milvus DB]
 I --> J[Ready for RAG Queries]
 ```
 
-  
+
 
 ## Pipeline Components
 
 ### 1. **Vector Database Registration** (`register_vector_db`)
 -  **Purpose**: Sets up the vector database with the proper configuration
-  
+
 ### 2. **Audio Import** (`import_audio_files`)
 -  **Purpose**: Downloads audio files from remote URLs.
 
@@ -47,9 +47,9 @@ I --> J[Ready for RAG Queries]
 ### 4. **ASR Conversion and Embedding Generation** (`docling_convert_and_ingest_audio`)
 -  **Purpose**: Main processing component that transcribes audio, chunks the text, and generates vector embeddings.
 
-  
 
-  
+
+
 
 ## Supported Audio Formats
 
@@ -72,7 +72,7 @@ In fact, Whisper model works exceptionally well with **WAV files**. It's the ide
 
 In short, providing Whisper with a 16kHz mono WAV file is giving it the exact type of data it was designed to read, which ensures the most reliable and accurate results.
 
-  
+
 ## 🔄 RAG Query Flow
 1.  **User Query** → Embedding Model → Query Vector
 2.  **Vector Search** → Vector Database → Similar Transcript Chunks
@@ -81,9 +81,9 @@ In short, providing Whisper with a 16kHz mono WAV file is giving it the exact ty
 
 The pipeline enables rich RAG applications that can answer questions about spoken content by leveraging the structured transcripts extracted from audio files.
 
-  
 
-  
+
+
 
 ## 🚀 Getting Started
 ### Prerequisites
@@ -95,7 +95,7 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 - GPU-enabled nodes are highly recommended for faster processing.
 - You can still use only CPU nodes but it will take longer time to execute pipeline.
 
-  
+
 
 **Pipeline Parameters**
 -  `base_url`: URL where audio files are hosted
@@ -108,7 +108,7 @@ The pipeline enables rich RAG applications that can answer questions about spoke
 -  `use_gpu`: Whether to use GPU for processing (default: true)
 -  `clean_vector_db`: The vector database will be cleared during running the pipeline (default: false)
 
-  
+
 ### Creating the Pipeline for running on GPU node
 
 
@@ -122,7 +122,7 @@ pip3 install -r requirements.txt
 python3 docling_asr_convert_pipeline.py
 ```
 
-  
+
 
 ### Creating the Pipeline for running on CPU only
 ```
@@ -135,16 +135,16 @@ pip3 install -r requirements.txt
 python3 docling_asr_convert_pipeline.py
 ```
 
-  
 
-  
+
+
 
 ### Import Kubeflow pipeline to OpenShift AI
 - Import the compiled YAML to in Pipeline server in your Data Science project in OpenShift AI
 - [Running a data science pipeline generated from Python code](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/openshift_ai_tutorial_-_fraud_detection_example/implementing-pipelines#running-a-pipeline-generated-from-python-code)
 - Configure the pipeline parameters as needed
 
-  
+
 
 
 ### Query RAG Agent in your Workbench within a Data Science project on OpenShift AI
@@ -153,7 +153,7 @@ python3 docling_asr_convert_pipeline.py
 	- Use this link `https://github.com/opendatahub-io/rag.git` for cloning the repo
 	- [Collaborating on Jupyter notebooks by using Git](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_cloud_service/1/html/working_with_connected_applications/using_basic_workbenches#collaborating-on-jupyter-notebooks-by-using-git_connected-apps)
 
-  
+
 
 3. Install dependencies for Jupyter Notebook with RAG Agent
 ```

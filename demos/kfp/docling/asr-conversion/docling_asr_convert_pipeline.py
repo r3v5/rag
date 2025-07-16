@@ -1,3 +1,17 @@
+# Copyright 2025 IBM, Red Hat
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # ruff: noqa: PLC0415,UP007,UP035,UP006,E712
 # SPDX-License-Identifier: Apache-2.0
 from typing import Iterator, List, Tuple, Dict
@@ -195,7 +209,6 @@ def docling_convert_and_ingest_audio(
             print("Installing ffmpeg...")
 
         try:
-
             print("Package management restricted, downloading static ffmpeg binary...")
 
             import urllib.request
@@ -371,7 +384,6 @@ def docling_convert_and_ingest_audio(
         chunker: HybridChunker,
         file_name: str,
     ) -> List[Dict]:
-
         chunks_with_embeddings = []
         for chunk in chunker.chunk(dl_doc=converted_data):
             raw_chunk = chunker.contextualize(chunk)

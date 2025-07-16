@@ -25,7 +25,7 @@ llama stack build --template ollama --image-type venv
 ```
 
 ### About the run.yaml file
-* The run.yaml file makes use of Milvus inline as its vector database. 
+* The run.yaml file makes use of Milvus inline as its vector database.
 * There are 3 default embedding models `ibm-granite/granite-embedding-125m-english`, `ibm-granite/granite-embedding-30m-english` and `all-MiniLM-L6-v2`.
 
 To add your own embedding models you can update the `models` section of the `run.yaml` file.
@@ -116,7 +116,7 @@ INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_
 
 ``` text
 dataset-name.zip/
-├── qrels/ 
+├── qrels/
 │   └── test.tsv     # Relevance judgments mapping query IDs to document IDs with relevance scores
 ├── corpus.jsonl     # Document collection with document IDs, titles, and text content
 └── queries.jsonl    # Test queries with query IDs and question text for retrieval evaluation
