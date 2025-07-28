@@ -1,9 +1,12 @@
-# Benchmarking embedding models with BEIR Datasets with Llama Stack
+# Benchmarking embedding models with BEIR Datasets and Llama Stack
 
 ## Purpose
 The purpose of this script is to compare retrieval accuracy between embedding models using standardized information retrieval benchmarks from the [BEIR](https://github.com/beir-cellar/beir) framework.
 
-Setup a virtual environment:
+## Setup
+For the examples we use Ollama to serve the model which can easily be swapped for an inference provider of your choice.
+
+Initialize a virtual environment:
 ``` bash
 uv venv .venv --python 3.12 --seed
 source .venv/bin/activate
@@ -16,35 +19,10 @@ uv pip install -r requirements.txt
 
 Prepare your environment by running:
 ``` bash
-llama stack build --template ollama --image-type venv
+# The run.yaml file is based on starter template https://github.com/meta-llama/llama-stack/tree/main/llama_stack/templates/starter
+# We run a build here to install all of the dependencies for the starter template
+llama stack build --template starter --image-type venv
 ```
-
-### About the run.yaml file
-* The run.yaml file makes use of Milvus inline as its vector database.
-* There are 2 default embedding models `ibm-granite/granite-embedding-125m-english` and `ibm-granite/granite-embedding-30m-english`
-
-To add your own embedding models you can update the `models` section of the `run.yaml` file.
-``` yaml
-# Example adding <example-model> embedding model with sentence-transformers as its provider
-models:
-- metadata: {}
-  model_id: ${env.INFERENCE_MODEL}
-  provider_id: ollama
-  model_type: llm
-- metadata:
-    embedding_dimension: 768
-  model_id: granite-embedding-125m
-  provider_id: sentence-transformers
-  provider_model_id: ibm-granite/granite-embedding-125m-english
-  model_type: embedding
-- metadata:
-    embedding_dimension: <int>
-  model_id: <example-model>
-  provider_id: sentence-transformers
-  provider_model_id: sentence-transformers/<example-model>
-  model_type: embedding
-```
-
 
 ## Running Instructions
 
@@ -52,9 +30,30 @@ models:
 To run the script with default settings:
 
 ```bash
-# Update INFERENCE_MODEL to your preferred model served by Ollama
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py
+# Update OLLAMA_INFERENCE_MODEL to your preferred model or similar for other inference providers
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py
 ```
+
+## Supported Embedding Models
+
+Default supported embedding models:
+- `granite-embedding-30m`: IBM Granite 30M parameter embedding model
+- `granite-embedding-125m`: IBM Granite 125M parameter embedding model
+
+It is possible to add more embedding models using the [Llama Stack Python Client](https://github.com/llamastack/llama-stack-client-python)
+
+### Adding additional embedding models
+Below is an example of how you can add more embedding models to the models list.
+``` bash
+# First run the llama stack server via the run file
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run llama stack run run.yaml
+```
+``` bash
+# Adding the all-MiniLM-L6-v2 model via the llama-stack-client
+llama-stack-client models register all-MiniLM-L6-v2 --provider-id sentence-transformers --provider-model-id all-minilm:latest --metadata '{"embedding_dimension": 384}' --model-type embedding
+```
+> [!NOTE]
+> Shut down the Llama Stack server before running the benchmark
 
 ### Command-Line Options
 
@@ -157,29 +156,29 @@ dataset-name.zip/
 
 **Basic benchmarking with default settings:**
 ```bash
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py
 ```
 
 **Basic benchmarking with larger batch size:**
 ```bash
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py --batch-size 300
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py --batch-size 300
 ```
 
 **Benchmark multiple datasets:**
 ```bash
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py \
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py \
  --dataset-names scifact scidocs
 ```
 
 **Compare specific embedding models:**
 ```bash
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py \
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py \
   --embedding-models granite-embedding-30m all-MiniLM-L6-v2
 ```
 
 **Use custom datasets:**
 ```bash
-INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python benchmark_beir_embedding_models.py \
+ENABLE_OLLAMA=ollama ENABLE_MILVUS=milvus OLLAMA_INFERENCE_MODEL="meta-llama/Llama-3.2-3B-Instruct" uv run python beir_benchmarks.py \
   --dataset-names my-dataset \
   --custom-datasets-urls https://example.com/my-beir-dataset.zip
 ```
